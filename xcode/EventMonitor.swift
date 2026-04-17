@@ -27,9 +27,9 @@ open class EventMonitor {
     }
     
     open func stop() {
-        if monitor != nil {
-            NSEvent.removeMonitor(monitor!)
-            monitor = nil
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
         }
     }
 }

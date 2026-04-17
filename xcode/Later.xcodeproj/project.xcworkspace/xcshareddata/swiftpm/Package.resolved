@@ -1,23 +1,24 @@
 {
+  "originHash" : "cfd9fd52ce7bd201a9fd95141c8fa7f68a6bd6f0d33a06c90d5a5a66031fb41f",
   "pins" : [
     {
       "identity" : "hotkey",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/soffes/HotKey",
       "state" : {
-        "branch" : "master",
-        "revision" : "c13662730cb5bc28de4a799854bbb018a90649bf"
+        "revision" : "31234dfbb4330b90ee10d89fbacb77316781cc06",
+        "version" : "0.2.0"
       }
     },
     {
-      "identity" : "launchatlogin",
+      "identity" : "launchatlogin-modern",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/sindresorhus/LaunchAtLogin",
+      "location" : "https://github.com/sindresorhus/LaunchAtLogin-Modern",
       "state" : {
-        "branch" : "main",
-        "revision" : "e8171b3e38a2816f579f58f3dac1522aa39efe41"
+        "revision" : "a04ec1c363be3627734f6dad757d82f5d4fa8fcc",
+        "version" : "1.1.0"
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
