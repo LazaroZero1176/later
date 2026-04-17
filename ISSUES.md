@@ -2,7 +2,7 @@
 
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.0 (Build 7)**, ad-hoc signiert, macOS 13.0+ deployment target.
+> Aktueller Build (dieses Repo): **v2.1 (Build 3)**, ad-hoc signiert, macOS 13.0+ deployment target.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
 
 ---
@@ -182,6 +182,14 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
   - Nutzer von Bartender/Barbee/Hidden Bar: „Later" dort einmalig auf „Show"/„Always Visible" setzen.
   - Unabhängig davon bleibt die App immer über den Dock-Icon erreichbar.
 
+### ISSUE-30 · MED · FIX — v2.1: Dock- und Menüleisten-Sichtbarkeit + Popover-Fallback
+- Anforderung: Nutzer soll **Dock-Icon** und **Menüleisten-Icon** unabhängig ein-/ausschalten können (`UserDefaults`: `showDockIcon`, `showMenuBarIcon`; Standard jeweils an). Mindestens eines muss aktiv bleiben, sonst nur noch globaler Hotkey (Hinweisdialog).
+- Umsetzung:
+  - **Steuerung:** `AppDelegate.applyAppearanceSettings()` setzt `NSApp.setActivationPolicy(.regular)` wenn Dock sichtbar, sonst `.accessory`; `statusItem.isVisible` für das Menüleisten-Icon.
+  - **UI:** Die beiden Optionen liegen im **Zahnrad-Menü** (`NSMenuItem` mit `state`), nicht im Popover — damit bleiben die festen Storyboard-Höhen für „Save“/Restore erhalten.
+  - **Popover-Anker:** Wenn das Status-Item nicht sichtbar ist oder außerhalb des sichtbaren Bildschirms liegt, zeigt `showPopover` das Popover an einem **kleinen Ankerfenster** oben mittig am Hauptdisplay (`fallbackAnchorWindow`), statt nur am (unsichtbaren) Button-Frame zu scheitern.
+- Dateien: `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` (`setUpMenu`, `syncAppearanceMenuItemsFromDefaults`).
+
 ---
 
 ## Sicherheits-spezifische Findings
@@ -244,6 +252,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-21 | FIX (Index-Guarding beim Restore) | `xcode/Test/ViewController.swift` |
 | ISSUE-22 | FIX (`MACOSX_DEPLOYMENT_TARGET = 13.0`) | `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-23 | FIX (lazy StatusItem, Accessory→Regular-Flip, 18×18 Icon-Resize, Dock-Klick öffnet Popover) | `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist` |
+| ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

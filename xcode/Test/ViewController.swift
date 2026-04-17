@@ -31,7 +31,19 @@ class ViewController: NSViewController {
     @IBOutlet weak var timeWrapper: NSView!
     @IBOutlet weak var timeWrapperHeight: NSLayoutConstraint!
     @IBOutlet weak var closeApps: NSButton!
+
     var checkKey = NSMenuItem(title: "Disable all shortcuts", action: #selector(switchKey), keyEquivalent: "")
+
+    private let menuItemShowDock = NSMenuItem(
+        title: "Show Dock icon",
+        action: #selector(toggleDockFromMenu(_:)),
+        keyEquivalent: ""
+    )
+    private let menuItemShowMenuBar = NSMenuItem(
+        title: "Show menu bar icon",
+        action: #selector(toggleMenuBarFromMenu(_:)),
+        keyEquivalent: ""
+    )
 
 
     var timer = Timer()
@@ -114,6 +126,45 @@ class ViewController: NSViewController {
         fixStyles()
         setUpMenu()
         observeModel()
+    }
+
+    private func presentBothOffAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Later needs a visible entry point"
+        alert.informativeText = "Leave at least one of the Dock icon or the menu bar icon enabled. Otherwise you can only open Later with the global keyboard shortcuts (unless those are disabled below)."
+        alert.alertStyle = .informational
+        alert.runModal()
+    }
+
+    private func syncAppearanceMenuItemsFromDefaults() {
+        menuItemShowDock.state = (defaults.object(forKey: "showDockIcon") as? Bool ?? true) ? .on : .off
+        menuItemShowMenuBar.state = (defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true) ? .on : .off
+    }
+
+    @objc private func toggleDockFromMenu(_ sender: NSMenuItem) {
+        let showDock = defaults.object(forKey: "showDockIcon") as? Bool ?? true
+        let showMenu = defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true
+        let newDock = !showDock
+        if !newDock && !showMenu {
+            presentBothOffAlert()
+            return
+        }
+        defaults.set(newDock, forKey: "showDockIcon")
+        sender.state = newDock ? .on : .off
+        NotificationCenter.default.post(name: .laterAppearanceChanged, object: nil)
+    }
+
+    @objc private func toggleMenuBarFromMenu(_ sender: NSMenuItem) {
+        let showDock = defaults.object(forKey: "showDockIcon") as? Bool ?? true
+        let showMenu = defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true
+        let newMenu = !showMenu
+        if !showDock && !newMenu {
+            presentBothOffAlert()
+            return
+        }
+        defaults.set(newMenu, forKey: "showMenuBarIcon")
+        sender.state = newMenu ? .on : .off
+        NotificationCenter.default.post(name: .laterAppearanceChanged, object: nil)
     }
 
     func observeModel() {
@@ -223,8 +274,14 @@ class ViewController: NSViewController {
     }
 
     func setUpMenu() {
+        menuItemShowDock.target = self
+        menuItemShowMenuBar.target = self
+
         self.settingsMenu.addItem(NSMenuItem(title: "Visit website", action: #selector(openURL), keyEquivalent: ""))
         self.settingsMenu.addItem(checkKey)
+        self.settingsMenu.addItem(NSMenuItem.separator())
+        self.settingsMenu.addItem(menuItemShowDock)
+        self.settingsMenu.addItem(menuItemShowMenuBar)
         self.settingsMenu.addItem(NSMenuItem.separator())
         // Lowercase "q" so Cmd+Q works without Shift (ISSUE-13).
         self.settingsMenu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -395,6 +452,7 @@ class ViewController: NSViewController {
     }
 
     @IBAction func settings(_ sender: NSButton) {
+        syncAppearanceMenuItemsFromDefaults()
         let p = NSPoint(x: sender.frame.origin.x, y: sender.frame.origin.y - (sender.frame.height / 2))
         settingsMenu.popUp(positioning: nil, at: p, in: sender.superview)
     }

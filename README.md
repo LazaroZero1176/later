@@ -26,7 +26,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Advanced settings to ignore apps, terminate instead of hiding, etc.
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
@@ -75,6 +75,11 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.1** (2026-04-17, this fork)
+- Optional **Dock icon** and **menu bar icon** (persisted in preferences). At least one must stay enabled; otherwise only global shortcuts can open the app (unless shortcuts are disabled in the gear menu).
+- These toggles live under the **gear (⚙️)** in the popover, not in the main options area, so the popover layout and the primary **Save windows for later** / restore actions stay fully visible.
+- If the menu bar item is hidden or stuck in the overflow strip, the popover can still anchor to a **fallback position** at the top-center of the screen (see `AppDelegate`).
 
 **v2.0** (2026-04-17, this fork)
 - macOS 13.0+ support, 22 bugs + 6 security findings fixed — see [`ISSUES.md`](./ISSUES.md).

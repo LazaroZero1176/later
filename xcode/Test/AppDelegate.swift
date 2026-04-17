@@ -22,6 +22,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var eventMonitor: EventMonitor?
     let defaults = UserDefaults.standard
 
+    /// When the menu bar item is hidden, we anchor the popover to this tiny
+    /// window at the top-center of the main display.
+    private var fallbackAnchorWindow: NSWindow?
+
     func runApp() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
@@ -77,8 +81,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "closeApps": false,
             "keepWindowsOpen": false,
             "waitCheckbox": false,
-            "switchKey": false
+            "switchKey": false,
+            "showDockIcon": true,
+            "showMenuBarIcon": true
         ])
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appearanceSettingsChanged),
+            name: .laterAppearanceChanged,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(popoverWillClose(_:)),
+            name: NSPopover.willCloseNotification,
+            object: popoverView
+        )
 
         // IMPORTANT: Create status item while the app is .accessory. Menubar
         // extras created under .regular get placed into a phantom application
@@ -86,16 +105,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         runApp()
 
-        // Then flip to .regular so the Dock icon stays visible as a fallback
-        // entry point. The status item is already attached to the system
-        // extras menubar at this point.
-        DispatchQueue.main.async {
-            NSApp.setActivationPolicy(.regular)
+        // Apply Dock + menu bar visibility (reads showDockIcon / showMenuBarIcon).
+        DispatchQueue.main.async { [weak self] in
+            self?.applyAppearanceSettings()
         }
+    }
+
+    @objc private func appearanceSettingsChanged() {
+        applyAppearanceSettings()
+    }
+
+    @objc private func popoverWillClose(_ notification: Notification) {
+        dismissFallbackAnchor()
+    }
+
+    /// Controls Dock visibility via activation policy and the status item via
+    /// `isVisible`. Called at launch and when the user changes the toggles.
+    func applyAppearanceSettings() {
+        let showDock = defaults.object(forKey: "showDockIcon") as? Bool ?? true
+        let showMenu = defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true
+
+        if statusItem != nil {
+            statusItem.isVisible = showMenu
+        }
+
+        // `.regular` → Dock tile; `.accessory` → menu-bar-only agent (no Dock).
+        let policy: NSApplication.ActivationPolicy = showDock ? .regular : .accessory
+        NSApp.setActivationPolicy(policy)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         // When the user clicks the Dock icon (no visible windows), toggle the popover.
+        NSApp.activate(ignoringOtherApps: true)
         if !flag {
             togglePopover(nil)
         }
@@ -120,20 +161,69 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPopover(_ sender: AnyObject?) {
         popoverView.animates = true
-        if let button = statusItem.button {
-            popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
-            popoverView.appearance = NSAppearance(named: .aqua)
+        popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
+        popoverView.appearance = NSAppearance(named: .aqua)
+
+        if let button = statusItem.button,
+           statusItem.isVisible,
+           button.window != nil,
+           isViewOnAnyScreen(button) {
+            dismissFallbackAnchor()
             popoverView.show(relativeTo: button.bounds, of: button, preferredEdge: NSRectEdge.minY)
+        } else {
+            let anchor = presentFallbackAnchor()
+            popoverView.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         }
         eventMonitor?.start()
     }
 
     func closePopover(_ sender: AnyObject?) {
         popoverView.performClose(sender)
+        dismissFallbackAnchor()
         eventMonitor?.stop()
     }
 
+    private func isViewOnAnyScreen(_ view: NSView) -> Bool {
+        guard let window = view.window else { return false }
+        return NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+    }
 
+    @discardableResult
+    private func presentFallbackAnchor() -> NSView {
+        if let existing = fallbackAnchorWindow, let v = existing.contentView {
+            return v
+        }
+        let screen = NSScreen.main ?? NSScreen.screens.first!
+        let f = NSRect(x: screen.frame.midX - 1,
+                       y: screen.frame.maxY - 2,
+                       width: 2,
+                       height: 2)
+        let win = NSWindow(contentRect: f,
+                           styleMask: [.borderless],
+                           backing: .buffered,
+                           defer: false)
+        win.level = .statusBar
+        win.isOpaque = false
+        win.backgroundColor = .clear
+        win.hasShadow = false
+        win.ignoresMouseEvents = true
+        win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        let view = NSView(frame: NSRect(origin: .zero, size: f.size))
+        win.contentView = view
+        win.orderFrontRegardless()
+        fallbackAnchorWindow = win
+        return view
+    }
+
+    private func dismissFallbackAnchor() {
+        fallbackAnchorWindow?.orderOut(nil)
+        fallbackAnchorWindow = nil
+    }
+
+}
+
+extension Notification.Name {
+    static let laterAppearanceChanged = Notification.Name("com.alyssaxuu.Later.appearanceChanged")
 }
 
 extension NSPopover {
