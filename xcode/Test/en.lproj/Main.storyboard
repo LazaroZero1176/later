@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="24765" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="20037"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24765"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -687,28 +687,26 @@
             <objects>
                 <viewController storyboardIdentifier="ViewController1" id="XfG-lQ-9wD" customClass="ViewController" customModule="Later" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" wantsLayer="YES" translatesAutoresizingMaskIntoConstraints="NO" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="315" height="686"/>
+                        <rect key="frame" x="0.0" y="0.0" width="315" height="886"/>
                         <subviews>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="FII-be-5xU">
-                                <rect key="frame" x="18" y="424" width="45" height="20"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <rect key="frame" x="18" y="881" width="42" height="19"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" title="Later" id="0im-9l-Wrj">
-                                    <font key="font" size="16" name="Inter-SemiBold"/>
+                                    <font key="font" metaFont="system" size="16"/>
                                     <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="c67-bl-sOy">
-                                <rect key="frame" x="67" y="422" width="51" height="16"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <rect key="frame" x="67" y="881" width="51" height="14"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" title="v2.1" id="CBi-aV-oCf">
-                                    <font key="font" size="11" name="Inter-Medium"/>
+                                    <font key="font" metaFont="smallSystem"/>
                                     <color key="textColor" red="0.635276854" green="0.62737250330000005" blue="0.63137388230000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
                             <box boxType="custom" borderWidth="0.0" cornerRadius="10" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="MPy-SW-b88">
-                                <rect key="frame" x="20" y="205" width="275" height="205"/>
+                                <rect key="frame" x="20" y="662" width="275" height="205"/>
                                 <view key="contentView" id="TVy-UI-S31">
                                     <rect key="frame" x="0.0" y="0.0" width="275" height="205"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -741,9 +739,9 @@
                                             </connections>
                                         </imageView>
                                         <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" preferredMaxLayoutWidth="250" translatesAutoresizingMaskIntoConstraints="NO" id="qaa-xl-mdH">
-                                            <rect key="frame" x="52" y="103" width="171" height="17"/>
+                                            <rect key="frame" x="55" y="103" width="165" height="17"/>
                                             <textFieldCell key="cell" lineBreakMode="clipping" title="Chrome, Finder, +3 more" id="Chf-c5-I1f">
-                                                <font key="font" size="14" name="Inter-SemiBold"/>
+                                                <font key="font" metaFont="system" size="14"/>
                                                 <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                                 <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                             </textFieldCell>
@@ -756,45 +754,45 @@
                                                 <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                             </textFieldCell>
                                         </textField>
-                                        <button verticalHuggingPriority="750" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="fW9-82-QiZ">
+                                        <button imageHugsTitle="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="fW9-82-QiZ">
                                             <rect key="frame" x="23" y="24" width="229" height="40"/>
+                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="arrow.counterclockwise" catalog="system" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="axesIndependently" inset="2" id="aIe-fy-LLa">
+                                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                <font key="font" metaFont="system"/>
+                                            </buttonCell>
+                                            <color key="contentTintColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                             <constraints>
                                                 <constraint firstAttribute="height" constant="40" id="XwP-Jq-kKu"/>
                                                 <constraint firstAttribute="width" constant="229" id="tTW-oz-BIn"/>
                                             </constraints>
-                                            <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="arrow.counterclockwise" catalog="system" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="axesIndependently" inset="2" id="aIe-fy-LLa">
-                                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" size="13" name="Inter-SemiBold"/>
-                                            </buttonCell>
-                                            <color key="contentTintColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                             <connections>
                                                 <action selector="restoreSession:" target="XfG-lQ-9wD" id="vqO-Sr-fqB"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="s3G-At-Crk">
                                             <rect key="frame" x="245" y="175" width="20" height="20"/>
-                                            <constraints>
-                                                <constraint firstAttribute="height" constant="20" id="aIj-Wa-WBz"/>
-                                                <constraint firstAttribute="width" constant="20" id="uAD-ZS-HSV"/>
-                                            </constraints>
                                             <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="closething" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="axesIndependently" inset="2" id="epG-W3-0P4">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                 <font key="font" metaFont="system"/>
                                             </buttonCell>
+                                            <constraints>
+                                                <constraint firstAttribute="height" constant="20" id="aIj-Wa-WBz"/>
+                                                <constraint firstAttribute="width" constant="20" id="uAD-ZS-HSV"/>
+                                            </constraints>
                                             <connections>
                                                 <action selector="hideBox:" target="XfG-lQ-9wD" id="u42-aX-RcS"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="ALa-ZI-AcJ">
                                             <rect key="frame" x="159" y="176" width="22" height="22"/>
+                                            <buttonCell key="cell" type="smallSquare" title="12" bezelStyle="smallSquare" image="NSAddTemplate" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="Rho-B2-GDl">
+                                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                                <font key="font" metaFont="cellTitle"/>
+                                            </buttonCell>
                                             <constraints>
                                                 <constraint firstAttribute="height" constant="22" id="3rp-cp-eJG"/>
                                                 <constraint firstAttribute="width" constant="22" id="jAA-bb-evA"/>
                                             </constraints>
-                                            <buttonCell key="cell" type="smallSquare" title="12" bezelStyle="smallSquare" image="NSAddTemplate" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="Rho-B2-GDl">
-                                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" size="12" name="Inter-Medium"/>
-                                            </buttonCell>
                                         </button>
                                         <customView translatesAutoresizingMaskIntoConstraints="NO" id="kKn-xA-ifK">
                                             <rect key="frame" x="29" y="-6" width="217" height="40"/>
@@ -812,7 +810,7 @@
                                                     <rect key="frame" x="161" y="12" width="46" height="16"/>
                                                     <buttonCell key="cell" type="smallSquare" title="Cancel" bezelStyle="smallSquare" image="NSAddTemplate" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="74s-NC-MNC">
                                                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                        <font key="font" size="13" name="Inter-Regular"/>
+                                                        <font key="font" metaFont="system"/>
                                                     </buttonCell>
                                                     <connections>
                                                         <action selector="cancelTimeClick:" target="XfG-lQ-9wD" id="gGg-jQ-ohr"/>
@@ -851,74 +849,99 @@
                                 </constraints>
                                 <color key="fillColor" red="0.18431678409999999" green="0.1843082905" blue="0.18431404230000001" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                             </box>
-                            <box boxType="custom" borderWidth="0.0" cornerRadius="10" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="9VD-Ls-6F0">
-                                <rect key="frame" x="20" y="21" width="275" height="300"/>
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aIn-AB-xTn">
+                                <rect key="frame" x="263" y="884" width="32" height="16"/>
+                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="settingsthing" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="8bV-8h-6gs">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                </buttonCell>
+                                <constraints>
+                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="16" id="AlG-qq-1WB"/>
+                                    <constraint firstAttribute="height" constant="16" id="iiv-AQ-sIF"/>
+                                </constraints>
+                                <connections>
+                                    <action selector="settings:" target="XfG-lQ-9wD" id="uRM-Ml-BzH"/>
+                                </connections>
+                            </button>
+                            <button imageHugsTitle="YES" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="UIT-zh-yWS">
+                                <rect key="frame" x="20" y="180" width="275" height="40"/>
+                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="NSAddTemplate" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="RDc-en-N6N">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                </buttonCell>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="40" id="eCg-Qf-TcR"/>
+                                    <constraint firstAttribute="width" constant="275" id="miK-zJ-Aal"/>
+                                </constraints>
+                                <connections>
+                                    <action selector="click:" target="XfG-lQ-9wD" id="lce-uo-V78"/>
+                                </connections>
+                            </button>
+                            <box misplaced="YES" boxType="custom" borderWidth="0.0" cornerRadius="10" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="9VD-Ls-6F0">
+                                <rect key="frame" x="20" y="180" width="275" height="410"/>
                                 <view key="contentView" id="gWt-uN-tNY">
-                                    <rect key="frame" x="0.0" y="0.0" width="275" height="300"/>
+                                    <rect key="frame" x="0.0" y="0.0" width="275" height="410"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="zNJ-qa-QYC">
-                                            <rect key="frame" x="20" y="-64" width="119" height="32"/>
+                                            <rect key="frame" x="20" y="178" width="120" height="32"/>
                                             <buttonCell key="cell" type="bevel" title=" Start at login" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="kY1-1s-G9k">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" size="13" name="Inter-Regular"/>
+                                                <font key="font" metaFont="system"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="startAtLogin:" target="XfG-lQ-9wD" id="AUj-7t-5W9"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="NKU-ec-WPV">
-                                            <rect key="frame" x="20" y="-18" width="185" height="32"/>
+                                            <rect key="frame" x="20" y="224" width="183" height="32"/>
                                             <buttonCell key="cell" type="bevel" title=" Ignore system windows" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" state="on" inset="2" id="seb-x0-Fd0">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" size="13" name="Inter-Regular"/>
+                                                <font key="font" metaFont="system"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="ignoreSystemWindows:" target="XfG-lQ-9wD" id="Zbo-DJ-p3a"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="J5F-VR-jIh">
-                                            <rect key="frame" x="20" y="74" width="205" height="32"/>
+                                            <rect key="frame" x="20" y="316" width="205" height="32"/>
                                             <buttonCell key="cell" type="bevel" title=" Quit apps instead of hiding" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="cZn-cP-Gcq">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" size="13" name="Inter-Regular"/>
+                                                <font key="font" metaFont="system"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="keepWindowsOpen:" target="XfG-lQ-9wD" id="8d7-6E-IBS"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="boq-gO-gqF">
-                                            <rect key="frame" x="210" y="-10" width="16" height="16"/>
-                                            <constraints>
-                                                <constraint firstAttribute="width" constant="16" id="J5l-XK-81P"/>
-                                                <constraint firstAttribute="height" constant="16" id="Zys-wh-Qvk"/>
-                                            </constraints>
+                                            <rect key="frame" x="208" y="232" width="16" height="16"/>
                                             <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="helpbutton" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="NCb-iL-hxz">
                                                 <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                 <font key="font" metaFont="system"/>
                                             </buttonCell>
+                                            <constraints>
+                                                <constraint firstAttribute="width" constant="16" id="J5l-XK-81P"/>
+                                                <constraint firstAttribute="height" constant="16" id="Zys-wh-Qvk"/>
+                                            </constraints>
                                             <connections>
                                                 <segue destination="rMs-q2-0uA" kind="popover" popoverAnchorView="boq-gO-gqF" popoverBehavior="t" preferredEdge="maxY" id="zvc-zY-pbC"/>
                                             </connections>
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tUo-Sf-aim">
-                                            <rect key="frame" x="20" y="28" width="159" height="32"/>
+                                            <rect key="frame" x="20" y="270" width="158" height="32"/>
                                             <buttonCell key="cell" type="bevel" title=" Reopen windows in" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="DDI-HL-Sgh">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" size="13" name="Inter-Regular"/>
+                                                <font key="font" metaFont="system"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="waitCheckboxChange:" target="XfG-lQ-9wD" id="Z8D-2I-KCy"/>
                                             </connections>
                                         </button>
                                         <popUpButton verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="bCC-yr-2Yi">
-                                            <rect key="frame" x="177" y="30" width="107" height="25"/>
-                                            <constraints>
-                                                <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="93" id="SIH-cB-494"/>
-                                            </constraints>
+                                            <rect key="frame" x="179" y="274" width="116" height="24"/>
                                             <popUpButtonCell key="cell" type="push" title="15 minutes" bezelStyle="rounded" alignment="left" lineBreakMode="truncatingTail" state="on" borderStyle="borderAndBezel" imageScaling="proportionallyDown" inset="2" selectedItem="suU-MH-d6c" id="lCI-pg-uF3">
                                                 <behavior key="behavior" lightByBackground="YES" lightByGray="YES"/>
-                                                <font key="font" metaFont="menu"/>
+                                                <font key="font" metaFont="message"/>
                                                 <menu key="menu" id="ucO-2h-Mzw">
                                                     <items>
                                                         <menuItem title="15 minutes" state="on" id="suU-MH-d6c"/>
@@ -928,12 +951,15 @@
                                                     </items>
                                                 </menu>
                                             </popUpButtonCell>
+                                            <constraints>
+                                                <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="93" id="SIH-cB-494"/>
+                                            </constraints>
                                         </popUpButton>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tpg-xD-tkr">
-                                            <rect key="frame" x="20" y="120" width="221" height="32"/>
+                                            <rect key="frame" x="20" y="362" width="220" height="32"/>
                                             <buttonCell key="cell" type="bevel" title=" Close all apps when restoring" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="US9-TX-iLZ">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
-                                                <font key="font" size="13" name="Inter-Regular"/>
+                                                <font key="font" metaFont="system"/>
                                             </buttonCell>
                                             <connections>
                                                 <action selector="closeAppsCheck:" target="XfG-lQ-9wD" id="hz7-pS-osx"/>
@@ -957,55 +983,24 @@
                                         <constraint firstItem="J5F-VR-jIh" firstAttribute="leading" secondItem="gWt-uN-tNY" secondAttribute="leading" constant="20" symbolic="YES" id="z16-nf-Kf3"/>
                                     </constraints>
                                 </view>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="300" id="veR-wK-tl8"/>
-                                </constraints>
+                                <constraints/>
                                 <color key="fillColor" red="0.18431678409999999" green="0.1843082905" blue="0.18431404230000001" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                             </box>
-                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aIn-AB-xTn">
-                                <rect key="frame" x="263" y="428" width="32" height="16"/>
-                                <constraints>
-                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="16" id="AlG-qq-1WB"/>
-                                    <constraint firstAttribute="height" constant="16" id="iiv-AQ-sIF"/>
-                                </constraints>
-                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="settingsthing" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="8bV-8h-6gs">
-                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                    <font key="font" metaFont="system"/>
-                                </buttonCell>
-                                <connections>
-                                    <action selector="settings:" target="XfG-lQ-9wD" id="uRM-Ml-BzH"/>
-                                </connections>
-                            </button>
-                            <button verticalHuggingPriority="750" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="UIT-zh-yWS">
-                                <rect key="frame" x="20" y="-35" width="275" height="40"/>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="40" id="eCg-Qf-TcR"/>
-                                    <constraint firstAttribute="width" constant="275" id="miK-zJ-Aal"/>
-                                </constraints>
-                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="NSAddTemplate" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyDown" inset="2" id="RDc-en-N6N">
-                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                    <font key="font" size="13" name="Inter-SemiBold"/>
-                                </buttonCell>
-                                <connections>
-                                    <action selector="click:" target="XfG-lQ-9wD" id="lce-uo-V78"/>
-                                </connections>
-                            </button>
                         </subviews>
                         <constraints>
                             <constraint firstItem="MPy-SW-b88" firstAttribute="top" secondItem="FII-be-5xU" secondAttribute="bottom" constant="14" id="5Gc-Fp-mcd"/>
                             <constraint firstItem="MPy-SW-b88" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="HBG-ZO-HVc"/>
                             <constraint firstItem="MPy-SW-b88" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="Psr-Pc-wxN"/>
                             <constraint firstItem="c67-bl-sOy" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="21" id="RHM-P0-gZa"/>
-                            <constraint firstItem="aIn-AB-xTn" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="16" id="VBZ-jd-369"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="top" secondItem="MPy-SW-b88" secondAttribute="bottom" constant="16" id="oSw-n8-zkV"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="ww5-xV-tol"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="xLU-zX-I1A"/>
-                            <constraint firstItem="UIT-zh-yWS" firstAttribute="top" secondItem="gWt-uN-tNY" secondAttribute="bottom" constant="16" id="b2n-BP-6mx"/>
                             <constraint firstItem="UIT-zh-yWS" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="Sav-Ctr-X"/>
+                            <constraint firstItem="aIn-AB-xTn" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="16" id="VBZ-jd-369"/>
+                            <constraint firstItem="UIT-zh-yWS" firstAttribute="top" secondItem="gWt-uN-tNY" secondAttribute="bottom" constant="16" id="b2n-BP-6mx"/>
                             <constraint firstAttribute="trailing" secondItem="aIn-AB-xTn" secondAttribute="trailing" constant="20" symbolic="YES" id="dsc-lQ-ww3"/>
                             <constraint firstItem="FII-be-5xU" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="eI0-6T-gMQ"/>
                             <constraint firstItem="FII-be-5xU" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="16" id="hKN-te-2Ee"/>
-                            <constraint firstAttribute="height" constant="686" id="n7C-fM-XAs"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="top" secondItem="MPy-SW-b88" secondAttribute="bottom" constant="16" id="oSw-n8-zkV"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="ww5-xV-tol"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="xLU-zX-I1A"/>
                         </constraints>
                     </view>
                     <connections>
@@ -1013,30 +1008,29 @@
                         <outlet property="boxHeight" destination="zj6-PG-0D4" id="fGM-NQ-w5x"/>
                         <outlet property="button" destination="UIT-zh-yWS" id="C38-9S-C4Y"/>
                         <outlet property="cancelTime" destination="fbV-J9-mwv" id="5hv-Q3-3R8"/>
-                        <outlet property="containerHeight" destination="n7C-fM-XAs" id="UDb-Rc-hG7"/>
+                        <outlet property="checkbox" destination="zNJ-qa-QYC" id="7Jz-FC-STl"/>
+                        <outlet property="closeApps" destination="tpg-xD-tkr" id="YIw-D8-CpS"/>
                         <outlet property="currentView" destination="m2S-Jp-Qdl" id="huC-eZ-fM2"/>
                         <outlet property="dateLabel" destination="ddP-4r-CaK" id="nYt-Ez-SRF"/>
+                        <outlet property="ignoreFinder" destination="NKU-ec-WPV" id="run-Lr-QXF"/>
+                        <outlet property="keepWindowsOpen" destination="J5F-VR-jIh" id="ox0-hA-3Gg"/>
                         <outlet property="numberOfSessions" destination="ALa-ZI-AcJ" id="JfT-bw-7rS"/>
+                        <outlet property="optionsBox" destination="9VD-Ls-6F0" id="XS8-op-Box"/>
                         <outlet property="preview" destination="78s-ry-Re3" id="Udd-Qh-19w"/>
                         <outlet property="restore" destination="fW9-82-QiZ" id="W80-I5-4ff"/>
+                        <outlet property="saveBelowOptionsConstraint" destination="b2n-BP-6mx" id="XS8-sv-Cstr"/>
                         <outlet property="sessionLabel" destination="qaa-xl-mdH" id="Iw3-uK-Xkj"/>
+                        <outlet property="timeDropdown" destination="bCC-yr-2Yi" id="l7r-Nw-0yg"/>
                         <outlet property="timeLabel" destination="Uwn-zg-Adg" id="jVn-7X-XFq"/>
                         <outlet property="timeWrapper" destination="kKn-xA-ifK" id="6ZD-er-pt5"/>
                         <outlet property="timeWrapperHeight" destination="TCE-oF-fPp" id="tMe-ZS-1c8"/>
                         <outlet property="topBoxSpacing" destination="oSw-n8-zkV" id="wmQ-TL-VVK"/>
-                        <outlet property="checkbox" destination="zNJ-qa-QYC" id="7Jz-FC-STl"/>
-                        <outlet property="closeApps" destination="tpg-xD-tkr" id="YIw-D8-CpS"/>
-                        <outlet property="ignoreFinder" destination="NKU-ec-WPV" id="run-Lr-QXF"/>
-                        <outlet property="keepWindowsOpen" destination="J5F-VR-jIh" id="ox0-hA-3Gg"/>
-                        <outlet property="timeDropdown" destination="bCC-yr-2Yi" id="l7r-Nw-0yg"/>
                         <outlet property="waitCheckbox" destination="tUo-Sf-aim" id="hme-KO-kwG"/>
-                        <outlet property="optionsBox" destination="9VD-Ls-6F0" id="XS8-op-Box"/>
-                        <outlet property="saveBelowOptionsConstraint" destination="b2n-BP-6mx" id="XS8-sv-Cstr"/>
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="-79" y="493"/>
+            <point key="canvasLocation" x="-47.5" y="391"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="zA0-K6-NIX">
@@ -1060,7 +1054,7 @@
                         </subviews>
                         <constraints>
                             <constraint firstAttribute="trailing" secondItem="voS-P1-U0R" secondAttribute="trailing" constant="20" id="44K-Qt-27e"/>
-                            <constraint firstItem="voS-P1-U0R" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="QhK-Tu-ref" secondAttribute="leading" symbolic="YES" id="hvW-jM-5OP"/>
+                            <constraint firstItem="voS-P1-U0R" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="QhK-Tu-ref" secondAttribute="leading" constant="20" symbolic="YES" id="hvW-jM-5OP"/>
                             <constraint firstItem="voS-P1-U0R" firstAttribute="top" secondItem="QhK-Tu-ref" secondAttribute="top" constant="16" id="r0x-xD-AfY"/>
                         </constraints>
                     </view>
@@ -1071,7 +1065,7 @@
         </scene>
     </scenes>
     <resources>
-        <image name="NSAddTemplate" width="14" height="13"/>
+        <image name="NSAddTemplate" width="18" height="17"/>
         <image name="arrow.counterclockwise" catalog="system" width="14" height="16"/>
         <image name="checky" width="32" height="32"/>
         <image name="closething" width="36" height="36"/>

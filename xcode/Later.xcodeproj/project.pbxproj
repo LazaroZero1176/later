@@ -26,6 +26,7 @@
 		ECF6532A27A6F9EA001EFA5D /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = ECF6532927A6F9EA001EFA5D /* HotKey */; };
 		E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234501 /* ExcludeSetupStore.swift */; };
 		E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */; };
+		E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234507 /* SessionSlotStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +35,7 @@
 		EC376244279C641D003144C7 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234501 /* ExcludeSetupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupStore.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupEditorController.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234507 /* SessionSlotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSlotStore.swift; sourceTree = "<group>"; };
 		EC376246279C641E003144C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Test/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		EC37624B279C641E003144C7 /* Test.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Test.entitlements; sourceTree = "<group>"; };
 		EC376251279C66F4003144C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 				EC376244279C641D003144C7 /* ViewController.swift */,
 				E4C11A012345678901234501 /* ExcludeSetupStore.swift */,
 				E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */,
+				E4C11A012345678901234507 /* SessionSlotStore.swift */,
 				ECF31AE627BC4DF200994D3C /* ViewController2.xib */,
 				EC376246279C641E003144C7 /* Assets.xcassets */,
 				EC376248279C641E003144C7 /* Main.storyboard */,
@@ -214,6 +217,7 @@
 				EC376245279C641D003144C7 /* ViewController.swift in Sources */,
 				E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */,
 				E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */,
+				E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */,
 				EC376243279C641D003144C7 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

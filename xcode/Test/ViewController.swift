@@ -11,6 +11,56 @@ import LaunchAtLogin
 import HotKey
 @preconcurrency import ScreenCaptureKit
 
+/// Borderless, layer-drawn button used for the Session slot grid.
+/// Native `.rounded` bezel buttons render badly on the dark options box
+/// (they lose their bezel when `wantsLayer` is enabled), so we draw our own.
+final class SlotButton: NSButton {
+    private var isActiveSlot = false
+
+    init(slotIndex: Int, target: AnyObject?, action: Selector?) {
+        super.init(frame: .zero)
+        self.tag = slotIndex
+        self.title = "\(slotIndex + 1)"
+        self.target = target
+        self.action = action
+        self.bezelStyle = .regularSquare
+        self.isBordered = false
+        self.focusRingType = .none
+        self.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        self.wantsLayer = true
+        self.layer?.cornerRadius = 6
+        self.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        self.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        applyColors()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func setActive(_ on: Bool) {
+        guard isActiveSlot != on else { return }
+        isActiveSlot = on
+        applyColors()
+    }
+
+    private func applyColors() {
+        let bg: NSColor = isActiveSlot
+            ? NSColor.controlAccentColor
+            : NSColor(white: 1.0, alpha: 0.08)
+        let fg: NSColor = isActiveSlot
+            ? .white
+            : NSColor(white: 0.92, alpha: 1)
+        layer?.backgroundColor = bg.cgColor
+        attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .foregroundColor: fg,
+                .font: font ?? NSFont.systemFont(ofSize: 13, weight: .semibold),
+                .paragraphStyle: { let p = NSMutableParagraphStyle(); p.alignment = .center; return p }()
+            ]
+        )
+    }
+}
+
 class ViewController: NSViewController {
 
     @IBOutlet var currentView: NSView!
@@ -54,7 +104,10 @@ class ViewController: NSViewController {
 
     @IBOutlet weak var boxHeight: NSLayoutConstraint!
     @IBOutlet weak var topBoxSpacing: NSLayoutConstraint!
-    @IBOutlet weak var containerHeight: NSLayoutConstraint!
+    // Previously drove the popover height as a fixed constant; replaced by
+    // content-driven layout (button bottom → view bottom). Kept optional so
+    // the outlet-free storyboard load does not crash during transition.
+    @IBOutlet weak var containerHeight: NSLayoutConstraint?
     @IBOutlet weak var optionsBox: NSBox!
     @IBOutlet weak var saveBelowOptionsConstraint: NSLayoutConstraint!
 
@@ -62,22 +115,11 @@ class ViewController: NSViewController {
     private let excludeSetupPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
     private weak var excludeSetupEditorWindow: NSWindow?
 
-    let defaults = UserDefaults.standard
+    /// Session slots (1–6) sit inside the options box under the last setting row.
+    private var sessionSlotsRoot: NSStackView?
+    private var sessionSlotButtons: [NSButton] = []
 
-    // UserDefaults keys for persisted session data.
-    private enum Keys {
-        static let session = "session"
-        static let lastState = "lastState"
-        static let date = "date"
-        static let sessionName = "sessionName"
-        static let sessionFullName = "sessionFullName"
-        static let totalSessions = "totalSessions"
-        /// Legacy: flat array of executable URLs (v1.x).
-        static let appsLegacy = "apps"
-        static let appNames = "appNames"
-        /// New: array of bundle identifiers. Preferred for restore.
-        static let appBundleIDs = "appBundleIDs"
-    }
+    let defaults = UserDefaults.standard
 
     // MARK: - Hotkeys
 
@@ -106,6 +148,8 @@ class ViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        SessionSlotStore.migrateIfNeeded()
+
         checkbox.state = LaunchAtLogin.isEnabled ? .on : .off
         closeApps.state = defaults.bool(forKey: "closeApps") ? .on : .off
         ignoreFinder.state = defaults.bool(forKey: "ignoreSystem") ? .on : .off
@@ -122,20 +166,25 @@ class ViewController: NSViewController {
             restoreKey = HotKey(key: .r, modifiers: [.command, .shift])
         }
 
-        if defaults.bool(forKey: Keys.session) {
-            updateSession()
-        } else {
-            noSessions()
-        }
+        buildSessionSlotSectionIfNeeded()
+        buildExcludeSetupRowIfNeeded()
+        refreshUIForActiveSlot()
 
-        setScreenshot()
-        fixStyles()
         setUpMenu()
         observeModel()
 
         ExcludeSetupStore.migrateIfNeeded()
-        buildExcludeSetupRowIfNeeded()
         syncExcludeSetupPopUp()
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        updatePreferredContentSize()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        updatePreferredContentSize()
     }
 
     private func presentBothOffAlert() {
@@ -318,13 +367,17 @@ class ViewController: NSViewController {
         return dir
     }
 
-    private static func screenshotURL() -> URL? {
-        return appSupportDirectory()?.appendingPathComponent("screenshot.jpg", isDirectory: false)
-    }
-
     func setScreenshot() {
-        guard let fileUrl = Self.screenshotURL() else { return }
-        preview.image = NSImage(byReferencing: fileUrl)
+        let idx = SessionSlotStore.activeIndex()
+        guard let fileUrl = SessionSlotStore.screenshotURL(for: idx) else {
+            preview.image = nil
+            return
+        }
+        if FileManager.default.fileExists(atPath: fileUrl.path) {
+            preview.image = NSImage(byReferencing: fileUrl)
+        } else {
+            preview.image = nil
+        }
         preview.wantsLayer = true
         preview.layer?.cornerRadius = 10
     }
@@ -347,17 +400,18 @@ class ViewController: NSViewController {
                 }
             }
         }
+        let slotIdx = SessionSlotStore.activeIndex()
         if #available(macOS 14.0, *) {
             Task.detached(priority: .userInitiated) {
-                await Self.captureViaScreenCaptureKit()
+                await Self.captureViaScreenCaptureKit(slotIndex: slotIdx)
             }
         } else {
-            captureLegacy()
+            captureLegacy(slotIndex: slotIdx)
         }
     }
 
     @available(macOS 14.0, *)
-    private static func captureViaScreenCaptureKit() async {
+    private static func captureViaScreenCaptureKit(slotIndex: Int) async {
         guard CGPreflightScreenCaptureAccess() else { return }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -368,7 +422,7 @@ class ViewController: NSViewController {
             config.height = display.height
             config.showsCursor = false
             let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-            guard let url = screenshotURL() else { return }
+            guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else { return }
             let rep = NSBitmapImageRep(cgImage: image)
             guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else { return }
             try data.write(to: url, options: .atomic)
@@ -378,8 +432,8 @@ class ViewController: NSViewController {
         }
     }
 
-    private func captureLegacy() {
-        guard let url = Self.screenshotURL() else { return }
+    private func captureLegacy(slotIndex: Int) {
+        guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else { return }
         guard let image = CGWindowListCreateImage(.zero, .optionOnScreenOnly, kCGNullWindowID, [.nominalResolution]) else { return }
         let rep = NSBitmapImageRep(cgImage: image)
         guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else { return }
@@ -392,12 +446,11 @@ class ViewController: NSViewController {
 
     // MARK: - Utility
 
-    func getCurrentDate() {
-        let currentDateTime = Date()
+    private static func makeCurrentDateString() -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .medium
         formatter.dateStyle = .medium
-        defaults.set(formatter.string(from: currentDateTime), forKey: Keys.date)
+        return formatter.string(from: Date())
     }
 
     // MARK: - Styling fixes / overrides
@@ -442,6 +495,8 @@ class ViewController: NSViewController {
         }
 
         applyExcludeSetupRowStyle()
+        applySessionSlotSectionStyle()
+        updateSlotButtonHighlights()
     }
 
     // MARK: - IBActions
@@ -595,15 +650,20 @@ class ViewController: NSViewController {
         // `.accessory` as the default, this will still behave correctly.
         NSApp.setActivationPolicy(previousPolicy)
 
-        defaults.set(lastState, forKey: Keys.lastState)
-        defaults.set(legacyURLs, forKey: Keys.appsLegacy)
-        defaults.set(bundleIDs, forKey: Keys.appBundleIDs)
-        defaults.set(arrayNames, forKey: Keys.appNames)
-        defaults.set(sessionName, forKey: Keys.sessionName)
-        defaults.set(sessionFull, forKey: Keys.sessionFullName)
-        defaults.set(String(totalSessions), forKey: Keys.totalSessions)
-        getCurrentDate()
-        updateSession()
+        let dateStr = Self.makeCurrentDateString()
+        let slot = SessionSlotStore.Slot(
+            hasSession: true,
+            lastState: lastState,
+            date: dateStr,
+            sessionName: sessionName,
+            sessionFullName: sessionFull,
+            totalSessions: String(totalSessions),
+            appsLegacy: legacyURLs,
+            appNames: arrayNames,
+            appBundleIDs: bundleIDs
+        )
+        SessionSlotStore.setSlot(at: SessionSlotStore.activeIndex(), slot)
+        refreshUIForActiveSlot()
         if waitCheckbox.state == .on {
             waitForSession()
         }
@@ -662,9 +722,10 @@ class ViewController: NSViewController {
             }
         }
 
-        let names = defaults.array(forKey: Keys.appNames) as? [String] ?? []
-        let bundleIDs = defaults.array(forKey: Keys.appBundleIDs) as? [String] ?? []
-        let legacyURLs = defaults.array(forKey: Keys.appsLegacy) as? [String] ?? []
+        let stored = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        let names = stored.appNames
+        let bundleIDs = stored.appBundleIDs
+        let legacyURLs = stored.appsLegacy
 
         let count = names.count
         for i in 0..<count {
@@ -681,14 +742,9 @@ class ViewController: NSViewController {
     // MARK: - Popover states
 
     func noSessions() {
-        defaults.set(false, forKey: Keys.session)
-        boxHeight.constant = 0
-        topBoxSpacing.constant = 0
-        containerHeight.constant = 466
-        currentView.needsLayout = true
-        currentView.updateConstraints()
-        fixStyles()
-        checkAnyWindows()
+        SessionSlotStore.setSlot(at: SessionSlotStore.activeIndex(), .empty)
+        applyEmptySlotUIOnly()
+        updateSlotButtonHighlights()
     }
 
     func hmsFrom(seconds: Int, completion: @escaping (_ hours: Int, _ minutes: Int, _ seconds: Int) -> Void) {
@@ -699,34 +755,137 @@ class ViewController: NSViewController {
         return seconds < 10 ? "0\(seconds)" : "\(seconds)"
     }
 
-    func updateSession() {
-        defaults.set(true, forKey: Keys.session)
-        if let dateString = defaults.string(forKey: Keys.date) {
-            dateLabel.stringValue = dateString
+    /// Reloads labels, preview, and layout from the active session slot.
+    private func refreshUIForActiveSlot() {
+        let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        if slot.hasSession {
+            dateLabel.stringValue = slot.date
             dateLabel.lineBreakMode = .byTruncatingTail
-        }
-        if let sessionName = defaults.string(forKey: Keys.sessionName) {
-            sessionLabel.stringValue = sessionName
+            sessionLabel.stringValue = slot.sessionName
             sessionLabel.lineBreakMode = .byTruncatingTail
-            if let sessionFullName = defaults.string(forKey: Keys.sessionFullName) {
-                sessionLabel.toolTip = sessionFullName
+            sessionLabel.toolTip = slot.sessionFullName
+            numberOfSessions.title = slot.totalSessions
+            if waitCheckbox.state == .on {
+                showTimer()
+            } else {
+                hideTimer()
             }
-        }
-        if let totalSessions = defaults.string(forKey: Keys.totalSessions) {
-            numberOfSessions.title = totalSessions
-        }
-        if waitCheckbox.state == .on {
-            showTimer()
+            fixStyles()
+            setScreenshot()
+            topBoxSpacing.constant = 16
+            currentView.needsLayout = true
+            currentView.updateConstraints()
         } else {
-            hideTimer()
+            applyEmptySlotUIOnly()
         }
-        fixStyles()
-        setScreenshot()
-        topBoxSpacing.constant = 16
-        containerHeight.constant = 686
+        updateSlotButtonHighlights()
+        checkAnyWindows()
+        updatePreferredContentSize()
+    }
+
+    private func applyEmptySlotUIOnly() {
+        boxHeight.constant = 0
+        topBoxSpacing.constant = 0
         currentView.needsLayout = true
         currentView.updateConstraints()
-        checkAnyWindows()
+        fixStyles()
+        setScreenshot()
+    }
+
+    /// Tell the enclosing NSPopover that our content size may have changed so it
+    /// resizes to match `view.fittingSize` (no leftover empty space, no clipping).
+    private func updatePreferredContentSize() {
+        view.layoutSubtreeIfNeeded()
+        let size = view.fittingSize
+        if size.width > 0 && size.height > 0 {
+            preferredContentSize = size
+        }
+    }
+
+    // MARK: - Session slots (1–6)
+
+    private func buildSessionSlotSectionIfNeeded() {
+        guard sessionSlotsRoot == nil else { return }
+        guard let boxContent = optionsBox.contentView else { return }
+
+        // The storyboard's options-box content view uses autoresizing, so a
+        // bottom constraint on our slot column would only stretch the *content
+        // view* inside the fixed-height box — leaving a big empty area below
+        // the slots. Pin the content view to the box via Auto Layout so the
+        // slot grid drives the box's real height.
+        boxContent.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            boxContent.leadingAnchor.constraint(equalTo: optionsBox.leadingAnchor),
+            boxContent.trailingAnchor.constraint(equalTo: optionsBox.trailingAnchor),
+            boxContent.topAnchor.constraint(equalTo: optionsBox.topAnchor),
+            boxContent.bottomAnchor.constraint(equalTo: optionsBox.bottomAnchor)
+        ])
+
+        let title = NSTextField(labelWithString: "Session")
+        title.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        title.alignment = .left
+        title.textColor = NSColor(white: 0.65, alpha: 1)
+        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        var buttons: [NSButton] = []
+        for i in 0..<SessionSlotStore.slotCount {
+            let b = SlotButton(slotIndex: i, target: self, action: #selector(sessionSlotClicked(_:)))
+            buttons.append(b)
+        }
+        sessionSlotButtons = buttons
+
+        let row1 = NSStackView(views: Array(buttons[0..<3]))
+        row1.orientation = .horizontal
+        row1.spacing = 8
+        row1.distribution = .fillEqually
+        row1.alignment = .centerY
+
+        let row2 = NSStackView(views: Array(buttons[3..<6]))
+        row2.orientation = .horizontal
+        row2.spacing = 8
+        row2.distribution = .fillEqually
+        row2.alignment = .centerY
+
+        let col = NSStackView(views: [title, row1, row2])
+        col.orientation = .vertical
+        col.spacing = 8
+        col.alignment = .width
+        col.translatesAutoresizingMaskIntoConstraints = false
+
+        boxContent.addSubview(col)
+        sessionSlotsRoot = col
+
+        let inset: CGFloat = 16
+        NSLayoutConstraint.activate([
+            col.topAnchor.constraint(equalTo: checkbox.bottomAnchor, constant: 14),
+            col.leadingAnchor.constraint(equalTo: boxContent.leadingAnchor, constant: inset),
+            col.trailingAnchor.constraint(equalTo: boxContent.trailingAnchor, constant: -inset),
+            col.bottomAnchor.constraint(equalTo: boxContent.bottomAnchor, constant: -inset),
+            row1.heightAnchor.constraint(equalToConstant: 30),
+            row2.heightAnchor.constraint(equalToConstant: 30)
+        ])
+
+        updateSlotButtonHighlights()
+    }
+
+    @objc private func sessionSlotClicked(_ sender: NSButton) {
+        let idx = sender.tag
+        guard idx >= 0 && idx < SessionSlotStore.slotCount else { return }
+        timer.invalidate()
+        timerCount.invalidate()
+        SessionSlotStore.setActiveIndex(idx)
+        refreshUIForActiveSlot()
+    }
+
+    private func updateSlotButtonHighlights() {
+        let active = SessionSlotStore.activeIndex()
+        for b in sessionSlotButtons {
+            (b as? SlotButton)?.setActive(b.tag == active)
+        }
+    }
+
+    private func applySessionSlotSectionStyle() {
+        // Custom `SlotButton` handles its own drawing; nothing to do here.
     }
 
     // MARK: - Exclude setups (session presets)
@@ -756,13 +915,19 @@ class ViewController: NSViewController {
         currentView.addSubview(row)
         excludeSetupStack = row
 
+        // Detach the save button from the options-box bottom and let Auto Layout
+        // drive the whole column: options box → exclude row → save button → view bottom.
+        // The storyboard's `containerHeight` constraint is left active but lowered
+        // to priority 250, so the content-driven chain wins and the popover sizes
+        // to fit (no leftover empty gap, no hidden save button).
         saveBelowOptionsConstraint.isActive = false
 
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: optionsBox.bottomAnchor, constant: 8),
+            row.topAnchor.constraint(equalTo: optionsBox.bottomAnchor, constant: 12),
             row.leadingAnchor.constraint(equalTo: currentView.leadingAnchor, constant: 20),
             row.trailingAnchor.constraint(lessThanOrEqualTo: currentView.trailingAnchor, constant: -20),
-            button.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 8)
+            button.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 12),
+            currentView.bottomAnchor.constraint(equalTo: button.bottomAnchor, constant: 20)
         ])
 
         applyExcludeSetupRowStyle()
