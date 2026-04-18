@@ -119,6 +119,9 @@ class ViewController: NSViewController {
     private var sessionSlotsRoot: NSStackView?
     private var sessionSlotButtons: [NSButton] = []
 
+    /// Placeholder shown in the session preview box when the active slot is empty.
+    private var noSessionLabel: NSTextField?
+
     let defaults = UserDefaults.standard
 
     // MARK: - Hotkeys
@@ -168,6 +171,7 @@ class ViewController: NSViewController {
 
         buildSessionSlotSectionIfNeeded()
         buildExcludeSetupRowIfNeeded()
+        buildNoSessionPlaceholderIfNeeded()
         refreshUIForActiveSlot()
 
         setUpMenu()
@@ -759,6 +763,7 @@ class ViewController: NSViewController {
     private func refreshUIForActiveSlot() {
         let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
         if slot.hasSession {
+            setSessionBoxPlaceholderVisible(false)
             dateLabel.stringValue = slot.date
             dateLabel.lineBreakMode = .byTruncatingTail
             sessionLabel.stringValue = slot.sessionName
@@ -772,7 +777,6 @@ class ViewController: NSViewController {
             }
             fixStyles()
             setScreenshot()
-            topBoxSpacing.constant = 16
             currentView.needsLayout = true
             currentView.updateConstraints()
         } else {
@@ -784,12 +788,47 @@ class ViewController: NSViewController {
     }
 
     private func applyEmptySlotUIOnly() {
-        boxHeight.constant = 0
-        topBoxSpacing.constant = 0
-        currentView.needsLayout = true
-        currentView.updateConstraints()
+        // Keep the preview box reserved at its normal height so the popover
+        // geometry does not jump when a slot flips between empty and filled.
+        // Instead we hide the session controls and show a placeholder label.
+        setSessionBoxPlaceholderVisible(true)
+        hideTimer()
         fixStyles()
         setScreenshot()
+    }
+
+    // MARK: - Empty-slot placeholder
+
+    private func buildNoSessionPlaceholderIfNeeded() {
+        guard noSessionLabel == nil, let content = box.contentView else { return }
+        let lbl = NSTextField(labelWithString: "No session saved in this slot.")
+        lbl.font = NSFont.systemFont(ofSize: 13)
+        lbl.textColor = NSColor(white: 0.65, alpha: 1)
+        lbl.alignment = .center
+        lbl.isHidden = true
+        lbl.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(lbl)
+        NSLayoutConstraint.activate([
+            lbl.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            lbl.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+            lbl.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor, constant: 16),
+            lbl.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -16)
+        ])
+        noSessionLabel = lbl
+    }
+
+    /// Shows the "no session" placeholder and hides every other subview of the
+    /// session preview box (preview image, labels, buttons, timer row). Or the
+    /// reverse when `showPlaceholder` is `false`.
+    private func setSessionBoxPlaceholderVisible(_ showPlaceholder: Bool) {
+        guard let content = box.contentView else { return }
+        for sub in content.subviews {
+            if sub === noSessionLabel {
+                sub.isHidden = !showPlaceholder
+            } else {
+                sub.isHidden = showPlaceholder
+            }
+        }
     }
 
     /// Tell the enclosing NSPopover that our content size may have changed so it
