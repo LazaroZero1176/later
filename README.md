@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.7.4.dmg`](./Later-2.7.4.dmg) from this repo.
+1. Download the latest [`Later-2.7.5.dmg`](./Later-2.7.5.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,11 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.7.5** (2026-04-18, this fork)
+- **Popover version label** next to the title now shows the real **marketing version and build** from `Info.plist` (e.g. `v2.7.5 (22)`), replacing a stale hardcoded storyboard string.
+- **Documentation:** [`ISSUES.md`](./ISSUES.md) — **SEC-01** clarified for this fork (SwiftPM **version** pins in `Package.resolved`); **v2.6.0** security-review text corrected for **v2.6.1+** `reopen.fireDates` storage (`[Double]`). See ISSUE-44.
+- DMG: `Later-2.7.5.dmg`.
 
 **v2.7.4** (2026-04-18, this fork)
 - **Time planner layout.** Slot cards use a **two-column × three-row** grid (720 pt wide window) instead of a single tall column. Shorter section titles (**Restore**, **Scheduled save**) with tooltips, tighter spacing, and a briefer intro line. See [`ISSUES.md`](./ISSUES.md) ISSUE-43.

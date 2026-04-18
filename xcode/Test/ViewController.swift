@@ -146,7 +146,7 @@ final class SlotButton: NSButton {
 }
 
 class ViewController: NSViewController {
-
+    
     @IBOutlet var currentView: NSView!
     @IBOutlet weak var preview: NSImageView!
     @IBOutlet weak var button: NSButton!
@@ -229,7 +229,7 @@ class ViewController: NSViewController {
     )
 
     private var sessionTimerObserver: NSObjectProtocol?
-
+    
     @IBOutlet weak var boxHeight: NSLayoutConstraint!
     @IBOutlet weak var topBoxSpacing: NSLayoutConstraint!
     // Previously drove the popover height as a fixed constant; replaced by
@@ -238,6 +238,8 @@ class ViewController: NSViewController {
     @IBOutlet weak var containerHeight: NSLayoutConstraint?
     @IBOutlet weak var optionsBox: NSBox!
     @IBOutlet weak var saveBelowOptionsConstraint: NSLayoutConstraint!
+    /// Popover header — driven from `Info.plist` in `viewDidLoad` (replaces legacy hardcoded storyboard text).
+    @IBOutlet weak var versionLabel: NSTextField!
 
     private var excludeSetupStack: NSStackView?
     private let excludeSetupPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -255,15 +257,17 @@ class ViewController: NSViewController {
 
     /// Placeholder shown in the session preview box when the active slot is empty.
     private var noSessionLabel: NSTextField?
-
+    
     let defaults = UserDefaults.standard
-
+    
     var observers = [NSKeyValueObservation]()
 
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        applyVersionLabelFromBundle()
 
         // Run all storage migrations *before* we start reading values back:
         // `refreshUIForActiveSlot()` below calls `syncExcludeSetupPopUp()`
@@ -315,6 +319,12 @@ class ViewController: NSViewController {
         if let o = sessionTimerObserver {
             NotificationCenter.default.removeObserver(o)
         }
+    }
+
+    private func applyVersionLabelFromBundle() {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        versionLabel.stringValue = "v\(short) (\(build))"
     }
 
     /// On macOS 26 (Tahoe) and later, the popover can render with a Liquid
@@ -426,7 +436,7 @@ class ViewController: NSViewController {
         sender.state = newMenu ? .on : .off
         NotificationCenter.default.post(name: .laterAppearanceChanged, object: nil)
     }
-
+    
     func observeModel() {
         self.observers = [
             NSWorkspace.shared.observe(\.runningApplications, options: [.initial]) { [weak self] _, _ in
@@ -530,7 +540,7 @@ class ViewController: NSViewController {
             let hhmm = df.string(from: fire)
             if weekdays.isEmpty {
                 timeLabel.stringValue = "Reopens at \(hhmm)"
-            } else {
+        } else {
                 timeLabel.stringValue = "Repeats \(weekdayListString(weekdays)) · next \(hhmm)"
             }
         }
@@ -590,12 +600,12 @@ class ViewController: NSViewController {
     }
 
     // MARK: - Menu actions
-
+    
     @objc func openURL() {
         guard let url = URL(string: "https://github.com/LazaroZero1176/later") else { return }
         NSWorkspace.shared.open(url)
     }
-
+    
     @objc func checkForUpdates() {
         // Use Sparkle to check for updates, not relevant in this version.
     }
@@ -675,7 +685,7 @@ class ViewController: NSViewController {
         }
         return dir
     }
-
+    
     func setScreenshot() {
         let idx = SessionSlotStore.activeIndex()
         guard let fileUrl = SessionSlotStore.screenshotURL(for: idx) else {
@@ -690,7 +700,7 @@ class ViewController: NSViewController {
         preview.wantsLayer = true
         preview.layer?.cornerRadius = 10
     }
-
+    
     // MARK: - Screenshot capture
 
     /// Take a small preview screenshot. Uses ScreenCaptureKit on macOS 14+,
@@ -774,17 +784,17 @@ class ViewController: NSViewController {
         restore.image = NSImage(named: "green-button")
         restore.imageScaling = .scaleAxesIndependently
         restore.layer?.cornerRadius = 10
-
+        
         numberOfSessions.wantsLayer = true
         numberOfSessions.layer?.backgroundColor = #colorLiteral(red: 0.9236671925, green: 0.1403781176, blue: 0.3365081847, alpha: 1)
         numberOfSessions.layer?.cornerRadius = numberOfSessions.frame.width / 2
         numberOfSessions.layer?.masksToBounds = true
-
+        
         if let mutableAttributedTitle = numberOfSessions.attributedTitle.mutableCopy() as? NSMutableAttributedString {
             mutableAttributedTitle.addAttribute(.foregroundColor, value: NSColor.white, range: NSRange(location: 0, length: mutableAttributedTitle.length))
             numberOfSessions.attributedTitle = mutableAttributedTitle
         }
-
+        
         let checkboxes: [NSButton] = [checkbox, closeApps, ignoreFinder, keepWindowsOpen, waitCheckbox]
         let label = #colorLiteral(red: 0.9136554599, green: 0.9137651324, blue: 0.9136180282, alpha: 1)
         for cb in checkboxes {
@@ -809,23 +819,23 @@ class ViewController: NSViewController {
     }
 
     // MARK: - IBActions
-
+    
     @IBAction func startAtLogin(_ sender: Any) {
         LaunchAtLogin.isEnabled = (checkbox.state == .on)
     }
-
+    
     @IBAction func closeAppsCheck(_ sender: Any) {
         defaults.set(closeApps.state == .on, forKey: "closeApps")
     }
-
+    
     @IBAction func ignoreSystemWindows(_ sender: Any) {
         defaults.set(ignoreFinder.state == .on, forKey: "ignoreSystem")
     }
-
+    
     @IBAction func keepWindowsOpen(_ sender: Any) {
         defaults.set(keepWindowsOpen.state == .on, forKey: "keepWindowsOpen")
     }
-
+    
     @IBAction func waitCheckboxChange(_ sender: Any) {
         let on = waitCheckbox.state == .on
         let idx = SessionSlotStore.activeIndex()
@@ -889,7 +899,7 @@ class ViewController: NSViewController {
         let idx = SessionSlotStore.activeIndex()
         SessionTimerEditing.applyDuration(slotIndex: idx, minutes: mins)
     }
-
+    
     @IBAction func click(_ sender: Any) {
         saveSessionGlobal()
         button.isEnabled = false
@@ -898,21 +908,21 @@ class ViewController: NSViewController {
     @IBAction func imageClick(_ sender: Any) {
         restoreSessionGlobal()
     }
-
+    
     @IBAction func restoreSession(_ sender: Any) {
         restoreSessionGlobal()
     }
-
+    
     @IBAction func hideBox(_ sender: Any) {
         noSessions()
     }
-
+    
     @IBAction func settings(_ sender: NSButton) {
         syncAppearanceMenuItemsFromDefaults()
         let p = NSPoint(x: sender.frame.origin.x, y: sender.frame.origin.y - (sender.frame.height / 2))
         settingsMenu.popUp(positioning: nil, at: p, in: sender.superview)
     }
-
+    
     @IBAction func cancelTimeClick(_ sender: Any) {
         ReopenTimerManager.shared.cancel(slotIndex: SessionSlotStore.activeIndex())
         hideTimer()
@@ -920,7 +930,7 @@ class ViewController: NSViewController {
     }
 
     // MARK: - Layout helpers
-
+    
     func hideTimer() {
         timeWrapperHeight.constant = 0
         boxHeight.constant = 206
@@ -928,7 +938,7 @@ class ViewController: NSViewController {
         currentView.needsLayout = true
         currentView.updateConstraints()
     }
-
+    
     func showTimer() {
         timeWrapperHeight.constant = 40
         boxHeight.constant = 226
@@ -949,11 +959,11 @@ class ViewController: NSViewController {
         var sessionsRemaining = 0
         var totalSessions = 0
         var lastState = false
-
+        
         takeScreenshot()
-
+        
         let frontmost = NSWorkspace.shared.frontmostApplication
-
+        
         // Remember the current activation policy so we can restore it at the
         // end of the save flow (see ISSUE-23). We used to blindly set
         // `.accessory` afterwards, which destroyed the Dock icon we rely on
@@ -978,7 +988,7 @@ class ViewController: NSViewController {
             if keepWindowsOpen.state == .off {
                 let ok = app.hide()
                 NSLog("Later: hide(\(name)) → \(ok ? "ok" : "ignored by target app")")
-            } else {
+                    } else {
                 // Don't terminate system apps (Finder et al.) even if user enabled "keep windows open".
                 if !isSystemApp(app) {
                     let ok = app.terminate()
@@ -992,14 +1002,14 @@ class ViewController: NSViewController {
                 sessionFull = name
             } else if sessionsAdded <= 3 {
                 sessionName += ", " + name
-            } else {
-                sessionsRemaining += 1
-            }
+                    } else {
+                        sessionsRemaining += 1
+                    }
             if !sessionFull.isEmpty { sessionFull += ", " }
             sessionFull += name
-            sessionsAdded += 1
-            totalSessions += 1
-        }
+                    sessionsAdded += 1
+                    totalSessions += 1
+                }
 
         for app in NSWorkspace.shared.runningApplications where shouldInclude(app) {
             if app == frontmost { continue } // handled below
@@ -1469,7 +1479,7 @@ class ViewController: NSViewController {
             let idx = i + 1
             if idx < excludeSetupPopUp.numberOfItems {
                 excludeSetupPopUp.selectItem(at: idx)
-            } else {
+        } else {
                 excludeSetupPopUp.selectItem(at: 0)
             }
         }
@@ -1494,7 +1504,7 @@ class ViewController: NSViewController {
         applyExcludeSetupRowStyle()
         checkAnyWindows()
     }
-
+    
     // MARK: - Time dropdown binding (v2.6.0)
 
     /// Rebuild the `timeDropdown` menu from the active slot's current

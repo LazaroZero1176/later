@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.7.4 (Build 21)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.7.5 (Build 22)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -331,6 +331,12 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Dateien: `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, Version 2.7.4 / 21 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`.
 - Versions-Entscheidung: Patch-Bump (2.7.3 → 2.7.4), reine UX-Anpassung.
 
+### ISSUE-44 · LOW · DOC/FIX — v2.7.5: Popover-Versionsanzeige + Tracker-Pflege
+- Symptom: Im Popover neben dem Titel „Later“ stand fest **v2.1** im Storyboard — driftet bei jedem Release.
+- Umsetzung: `NSTextField` per IBOutlet `versionLabel`; `ViewController.applyVersionLabelFromBundle()` setzt `v<CFBundleShortVersionString> (<CFBundleVersion>)` aus `Bundle.main.infoDictionary`. Storyboard-Platzhalter geleert.
+- Tracker: SEC-Tabelle **SEC-01** klärt Fork-vs.-Original (Version-Pins in `Package.resolved`); Sicherheits-Review **v2.6.0**-Absatz zu `reopen.fireDates` auf **v2.6.1+ `[Double]`** korrigiert (statt veralteter `Date`/`NSNull`-Formulierung).
+- Dateien: `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`, `ISSUES.md`, Version 2.7.5 / 22 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`, `README.md`.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -403,7 +409,7 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 
 | ID | Thema | Schwere |
 |---|---|---|
-| SEC-01 | Branch-Pinning von SwiftPM-Deps (`LaunchAtLogin`, `HotKey`) → Supply-Chain-Angriffsfläche. Jeder Fremd-Commit auf `main`/`master` wird beim nächsten `xcodebuild` gezogen. | HIGH |
+| SEC-01 | Branch-Pinning von SwiftPM-Deps — **im Original-Repo** HIGH. **Dieses Fork:** alle SPM-Deps über **Version-Pins** (`HotKey` 0.2.0, `KeyboardShortcuts` 2.4.0, `LaunchAtLogin-Modern` 1.1.0 in `Package.resolved`), kein `branch=`. | FIX (Fork) |
 | SEC-02 | `com.apple.security.cs.allow-jit` ohne Bedarf (kein eigener Interpreter / JIT). Öffnet R+W+X-Speicher. | MED |
 | SEC-03 | Keine Sandbox (`com.apple.security.app-sandbox`) — App hat Vollzugriff auf Documents, Running-Apps, Prozess­start via `Process()`. Bei App-Store-Distribution nicht abnahmefähig. | MED (für Self-Distribution akzeptabel) |
 | SEC-04 | Screenshot wird als `screenshot.jpg` in `~/Documents/` abgelegt — potenziell sensitive Daten in geteiltem Ordner; andere Apps können mitlesen. | MED |
@@ -411,7 +417,7 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 | SEC-06 | Keine Notarisierung / ad-hoc Signatur (ISSUE-01). | HIGH |
 
 **Fixes (Sicherheit):**
-- SEC-01 → siehe ISSUE-03/04 (Tag-Pinning).
+- SEC-01 → Tag-Pinning in `project.pbxproj` + `Package.resolved` (Stand v2.7.5: keine Branch-Pins).
 - SEC-02 → siehe ISSUE-16 (Entitlement entfernen).
 - SEC-04 → Screenshot nach `Application Support/Later/` umziehen, `FileManager` mit `withIntermediateDirectories`.
 - SEC-05 → Bundle-Identifier + Bundle-URL statt Executable-URL speichern, beim Restore via `NSWorkspace` auflösen (ISSUE-11 kombiniert den Fix).
@@ -440,7 +446,7 @@ Die neue Dependency `KeyboardShortcuts` 2.4.0 speichert Shortcut-Kombinationen a
 
 ### Sicherheits-Review v2.6.0 (per-Slot Reopen-Timer)
 
-Die neuen Felder im `Slot`-Struct sind reine Primitivtypen (`String` raw für den Enum-Mode, `Int` für Zeit, `[Int]` für Weekdays). `reopenWeekdays` wird bei der Berechnung per `(1...7).contains(day)` gefiltert, `reopenClockHour`/`Minute` beim Anwenden auf `0...23` / `0...59` geklemmt — ein manipulierter Plist-Blob kann keine negative Wartezeit, keine ungültige Wochentags-Zahl, keinen Out-of-Range-Hour-Wert in die `Calendar`-API füttern. `UserDefaults[reopen.fireDates]` enthält ausschließlich `Date`-Objekte bzw. `NSNull`, kein String-Eval / kein Executable-Pfad (SEC-05 bleibt gefixt). Der Feuer-Pfad routet weiterhin ausschließlich über `restoreSessionGlobal()` → `NSWorkspace.openApplication(at:)` mit Bundle-ID-Filter — keine neue Angriffsfläche im App-Start-Pipeline. `Timer` + `RunLoop.main.add(_:forMode:)` laufen in-process, kein IPC/XPC. Kein neues Entitlement/TCC-Scope.
+Die neuen Felder im `Slot`-Struct sind reine Primitivtypen (`String` raw für den Enum-Mode, `Int` für Zeit, `[Int]` für Weekdays). `reopenWeekdays` wird bei der Berechnung per `(1...7).contains(day)` gefiltert, `reopenClockHour`/`Minute` beim Anwenden auf `0...23` / `0...59` geklemmt — ein manipulierter Plist-Blob kann keine negative Wartezeit, keine ungültige Wochentags-Zahl, keinen Out-of-Range-Hour-Wert in die `Calendar`-API füttern. `UserDefaults[reopen.fireDates]` enthält seit **v2.6.1** ausschließlich `[Double]`-Zeitstempel (`0` = kein aktiver Timer); v2.6.0 hatte fälschlich `NSNull` in der Liste (Hotfix ISSUE-37). Kein String-Eval / kein Executable-Pfad (SEC-05 bleibt gefixt). Der Feuer-Pfad routet weiterhin ausschließlich über `restoreSessionGlobal()` → `NSWorkspace.openApplication(at:)` mit Bundle-ID-Filter — keine neue Angriffsfläche im App-Start-Pipeline. `Timer` + `RunLoop.main.add(_:forMode:)` laufen in-process, kein IPC/XPC. Kein neues Entitlement/TCC-Scope.
 
 ---
 
@@ -505,7 +511,8 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-41 | FIX (v2.7.2: Time-Planner Mindesthöhe / `contentMinSize` — Fenster kollabierte ohne sichtbare Slot-Liste) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-42 | FEATURE (v2.7.3: geplanter Speichern-Timer pro Slot, `ScheduledSaveTimerManager`, zweite Planner-Zeile) | `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ScheduledSaveTimerManager.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/SessionTimePlannerController.swift`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/Test/Info.plist`, `xcode/build-dmg.sh` |
 | ISSUE-43 | FIX (v2.7.4: Time-Planner 2×3-Raster, Fensterbreite 720 pt, kürzere Labels + Tooltips) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
-| SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
+| ISSUE-44 | FIX/DOC (v2.7.5: Popover-Version aus Bundle; ISSUES SEC-01 + v2.6.0-Review-Text aktualisiert) | `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`, `ISSUES.md`, `README.md`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
+| SEC-01 | FIX (Fork: SPM-Version-Pins, kein Branch-Pinning) | `Package.resolved`, siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
 | SEC-04 | FIX (Screenshot in `~/Library/Application Support/<BundleID>/`) | `xcode/Test/ViewController.swift` |
