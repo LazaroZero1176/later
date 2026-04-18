@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, without opening the popover<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.4.1.dmg`](./Later-2.4.1.dmg) from this repo.
+1. Download the latest [`Later-2.4.2.dmg`](./Later-2.4.2.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,11 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.4.2** (2026-04-18, this fork)
+- **Right-click quickbar on the menu bar icon.** Right-clicking (or Ctrl-clicking) the moon icon now opens a compact session menu listing all six slots. Clicking a slot sets it active *and* restores it in a single step — no popover, no extra click — so switching workspaces from a keyboard shortcut is now also a one-second mouse move. Empty slots are shown disabled (`Slot N — empty`), the currently active slot is checkmarked (`Slot N — <sessionName>` with a ✓). The menu also has an **Open Later…** entry that brings up the regular popover, plus **Quit**. Left-click behavior is unchanged. The "Only apps from this session (close others)" checkbox in the popover still controls whether restore closes apps that aren't part of the slot, just like when you trigger restore from the green button.
+- Implementation note (see [`ISSUES.md`](./ISSUES.md) ISSUE-33): the status-item button is configured with `sendAction(on: [.leftMouseUp, .rightMouseUp])`, and `togglePopover(_:)` sniffs `NSApp.currentEvent` to dispatch between the popover (left) and the quick menu (right / Ctrl). The quickbar uses `SessionSlotStore.slot(at:)` for titles/enabled state, which means Touch Bar–free restores work even if you've never opened the popover in the current session (the view controller is forced to load before `restoreSessionGlobal()` is called).
+- DMG renamed to `Later-2.4.2.dmg`.
 
 **v2.4.1** (2026-04-18, this fork)
 - Follow-up to v2.4: added a **"Use Liquid Glass (Tahoe)" toggle** in the gear menu. Defaults to on when running on macOS 26+, and the menu item is hidden entirely on older macOS. Turning it off restores the exact legacy dark popover look from v2.3 — useful if the glass material is too subtle for your monitor or clashes with your wallpaper. The toggle takes effect immediately, even with the popover open; the user-readable label color in the session-setup row flips too, so nothing becomes unreadable. Persisted in `UserDefaults` under `useLiquidGlass`.

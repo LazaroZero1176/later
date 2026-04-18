@@ -55,6 +55,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         button.toolTip = "Later"
         button.target = self
         button.action = #selector(AppDelegate.togglePopover(_:))
+        // Route both click types through togglePopover(_:), which sniffs the
+        // event and either shows the popover (left) or the session quickbar
+        // menu (right / control-click) — see v2.4.2 / ISSUE-33.
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
         let storyboard = NSStoryboard(name: "Main", bundle: nil)
         guard let vc = storyboard.instantiateController(withIdentifier: "ViewController1") as? ViewController else {
@@ -163,11 +167,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func togglePopover(_ sender: AnyObject?) {
+        // Sniff the current event so a right-click (or Ctrl-click) on the
+        // status item opens the session quickbar instead of the popover.
+        // Left-click falls through to the normal show/hide toggle.
+        if let ev = NSApp.currentEvent,
+           ev.type == .rightMouseUp
+               || (ev.type == .leftMouseUp && ev.modifierFlags.contains(.control)) {
+            showQuickMenu()
+            return
+        }
+        togglePopoverInternal(sender)
+    }
+
+    /// Pure show/hide toggle for the popover, used by the left-click path
+    /// above and by the "Open Later..." item inside the quickbar.
+    private func togglePopoverInternal(_ sender: AnyObject?) {
         if popoverView.isShown {
             closePopover(sender)
         } else {
             showPopover(sender)
         }
+    }
+
+    @objc private func togglePopoverFromMenu(_ sender: Any?) {
+        togglePopoverInternal(sender as AnyObject?)
     }
 
     func showPopover(_ sender: AnyObject?) {
@@ -191,6 +214,84 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popoverView.performClose(sender)
         dismissFallbackAnchor()
         eventMonitor?.stop()
+    }
+
+    // MARK: - Session quickbar (right-click on status item)
+
+    /// Build and present a fresh `NSMenu` listing every session slot plus the
+    /// regular entry points. Called on right-click / Ctrl-click of the status
+    /// item (see `togglePopover`). The menu is rebuilt every time so slot
+    /// names and the active-slot checkmark reflect the current state.
+    private func showQuickMenu() {
+        guard let button = statusItem?.button,
+              statusItem.isVisible,
+              button.window != nil,
+              isViewOnAnyScreen(button) else {
+            // Without a visible status-item button we cannot anchor an NSMenu.
+            // Fall back to the popover (which has its own fallback anchor) so
+            // a right-click still does something useful.
+            togglePopoverInternal(nil)
+            return
+        }
+
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        let header = NSMenuItem(title: "Sessions", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+
+        let active = SessionSlotStore.activeIndex()
+        for i in 0..<SessionSlotStore.slotCount {
+            let slot = SessionSlotStore.slot(at: i)
+            let title: String
+            if slot.hasSession {
+                title = "Slot \(i + 1) — \(slot.sessionName)"
+            } else {
+                title = "Slot \(i + 1) — empty"
+            }
+            let item = NSMenuItem(title: title,
+                                  action: #selector(quickRestoreSlot(_:)),
+                                  keyEquivalent: "")
+            item.target = self
+            item.tag = i
+            item.isEnabled = slot.hasSession
+            item.state = (i == active) ? .on : .off
+            menu.addItem(item)
+        }
+
+        menu.addItem(NSMenuItem.separator())
+        let openItem = NSMenuItem(title: "Open Later…",
+                                  action: #selector(togglePopoverFromMenu(_:)),
+                                  keyEquivalent: "")
+        openItem.target = self
+        menu.addItem(openItem)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Quit",
+                                action: #selector(NSApplication.terminate(_:)),
+                                keyEquivalent: "q"))
+
+        // Drop just below the button so the menu feels attached to the icon.
+        let origin = NSPoint(x: 0, y: button.bounds.height + 4)
+        menu.popUp(positioning: nil, at: origin, in: button)
+    }
+
+    @objc private func quickRestoreSlot(_ sender: NSMenuItem) {
+        let idx = sender.tag
+        guard idx >= 0 && idx < SessionSlotStore.slotCount else { return }
+        SessionSlotStore.setActiveIndex(idx)
+        // `restoreSessionGlobal()` lives on ViewController and depends on
+        // IBOutlets (e.g. `closeApps`). Make sure the view has been loaded
+        // at least once before calling it, otherwise a cold-launch right-click
+        // (popover never opened yet) would crash on a nil outlet.
+        if let vc = popoverView.contentViewController as? ViewController {
+            // Force the view (and IBOutlets + viewDidLoad) to load if the
+            // popover has never been shown. `loadViewIfNeeded()` would be
+            // nicer but is macOS 14+; touching `.view` is the 13.0-compatible
+            // equivalent and is idempotent.
+            _ = vc.view
+            vc.restoreSessionGlobal()
+        }
     }
 
     /// Apply or clear the legacy dark popover overrides based on the user's

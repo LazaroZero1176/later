@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.4.1 (Build 10)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.4.2 (Build 11)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -221,6 +221,17 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: Beide Lookups filtern jetzt `!$0.isTerminated`, der Launch-Zweig greift in diesem Fall wieder und startet die App neu. Kein neuer Sleep/Retry nötig — `NSWorkspace.openApplication(at:)` ist gegenüber einer noch nicht ganz beendeten Instanz gutmütig.
 - Datei: `xcode/Test/ViewController.swift`.
 
+### ISSUE-33 · LOW · FEATURE — v2.4.2: Session-Quickleiste via Rechtsklick aufs Menüleisten-Icon
+- Kontext: Bis v2.4.1 war die einzige Möglichkeit, eine Session wiederherzustellen, das Popover zu öffnen (Linksklick / Hotkey / Dock-Icon), den richtigen Slot auszuwählen und den grünen Restore-Button zu drücken. Für reine „Preset-Nutzer" (Work/Home/Coding) ist das drei Klicks zu viel.
+- Umsetzung:
+  - `NSStatusItem.button` bekommt in `applicationWillFinishLaunching` zusätzlich `sendAction(on: [.leftMouseUp, .rightMouseUp])` — beide Event-Typen laufen jetzt durch `togglePopover(_:)`.
+  - `togglePopover(_:)` sniffelt `NSApp.currentEvent`: `rightMouseUp` oder `leftMouseUp` + `.control` → neuer `showQuickMenu()`-Pfad; sonst die bisherige Show/Hide-Logik (jetzt ausgelagert in `togglePopoverInternal(_:)`).
+  - `showQuickMenu()` baut bei jedem Aufruf ein frisches `NSMenu`: disabled Header „Sessions", sechs Slot-Einträge mit Titeln `Slot N — <sessionName>` (bzw. `Slot N — empty`), aktiver Slot bekommt `state = .on`, leere Slots `isEnabled = false`. Unten Separator → „Open Later…" (öffnet/schließt das Popover via `togglePopoverFromMenu`), Separator → Quit. Anker ist der Status-Item-Button, damit das Menü direkt darunter erscheint.
+  - `quickRestoreSlot(_:)` setzt den aktiven Slot via `SessionSlotStore.setActiveIndex(_:)` und ruft `vc.restoreSessionGlobal()` auf der `ViewController`-Instanz auf. Vorher wird `_ = vc.view` erzwungen, weil `restoreSessionGlobal()` auf IBOutlets (`closeApps`, …) zugreift — bei einem Kaltstart, in dem das Popover noch nie geöffnet wurde, wäre das sonst ein Crash. `loadViewIfNeeded()` wäre die sauberere API, ist aber macOS 14+; `vc.view` tut dasselbe und ist seit macOS 10.10 verfügbar.
+  - Fallback: Ist das Status-Item unsichtbar (Bartender/Hidden Bar-Szenario), fällt der Rechtsklick auf den bestehenden Popover-Fallback-Anker zurück — ein `NSMenu` ohne sichtbares Ankerfenster könnte sonst an der Mausposition „verloren" wirken.
+- Dateien: `xcode/Test/AppDelegate.swift`.
+- Versions-Entscheidung: Patch-Bump (2.4.1 → 2.4.2), rein additives Feature, keine Verhaltensänderung für den bisherigen Linksklick-Pfad.
+
 ### ISSUE-32 · LOW · FEATURE — v2.4.1: Liquid-Glass-Opt-out im Zahnrad-Menü
 - Kontext: Mit v2.4 adoptiert das Popover auf macOS 26+ automatisch Liquid Glass. Nutzer, denen die neue Transluzenz zu subtil ist oder die vor hellem Wallpaper schlecht lesbar bleibt, brauchen einen direkten Opt-out.
 - Umsetzung:
@@ -338,6 +349,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-31 | FEATURE (v2.4: Liquid-Glass-Opt-in auf macOS 26, runtime-gated, pre-Tahoe unverändert) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-32 | FEATURE (v2.4.1: Zahnrad-Menü-Toggle zum Deaktivieren von Liquid Glass, Live-Update) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
+| ISSUE-33 | FEATURE (v2.4.2: Rechtsklick-Quickleiste auf dem Menüleisten-Icon, Ein-Klick-Restore über `NSMenu`) | `xcode/Test/AppDelegate.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

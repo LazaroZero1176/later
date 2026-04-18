@@ -3,7 +3,7 @@
 # Version is controlled by LATER_VERSION below; bump together with Info.plist.
 set -euo pipefail
 
-LATER_VERSION="2.4.1"
+LATER_VERSION="2.4.2"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
