@@ -21,6 +21,11 @@ final class ClockTimeSheetController: NSViewController {
     /// Invoked on Cancel (or ESC). The caller uses this to roll the time
     /// dropdown back to whatever selection the slot actually holds.
     var onCancel: (() -> Void)?
+    /// Always invoked once when the window closes (OK, Cancel, or red close),
+    /// so the owner can drop its `NSWindow` reference.
+    var onWindowClosed: (() -> Void)?
+
+    private var completedViaButton = false
 
     private let initialHour: Int
     private let initialMinute: Int
@@ -140,6 +145,12 @@ final class ClockTimeSheetController: NSViewController {
         self.view = root
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        // Handle the titlebar close box the same as Cancel (roll back dropdown).
+        view.window?.delegate = self
+    }
+
     // MARK: - Actions
 
     @objc private func weekdayToggled(_ sender: NSButton) {
@@ -157,17 +168,19 @@ final class ClockTimeSheetController: NSViewController {
     }
 
     @objc private func cancelClicked(_ sender: Any?) {
+        completedViaButton = true
         onCancel?()
-        dismiss(nil)
+        view.window?.close()
     }
 
     @objc private func okClicked(_ sender: Any?) {
+        completedViaButton = true
         let cal = Calendar.current
         let comps = cal.dateComponents([.hour, .minute], from: datePicker.dateValue)
         let h = comps.hour ?? initialHour
         let m = comps.minute ?? initialMinute
         onConfirm?(h, m, currentWeekdays())
-        dismiss(nil)
+        view.window?.close()
     }
 
     // MARK: - Helpers
@@ -185,5 +198,15 @@ final class ClockTimeSheetController: NSViewController {
             out.insert(cb.tag)
         }
         return out
+    }
+}
+
+extension ClockTimeSheetController: NSWindowDelegate {
+
+    func windowWillClose(_ notification: Notification) {
+        if !completedViaButton {
+            onCancel?()
+        }
+        onWindowClosed?()
     }
 }

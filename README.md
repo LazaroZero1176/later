@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.6.1.dmg`](./Later-2.6.1.dmg) from this repo.
+1. Download the latest [`Later-2.6.2.dmg`](./Later-2.6.2.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,10 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.6.2** (2026-04-18, this fork)
+- **Fix: "At specific time…" did not show the clock / weekday editor.** The timer UI lives inside the popover; v2.6.0 used `NSViewController.presentAsSheet(_:)` to present `ClockTimeSheetController`. That API does not reliably attach a visible sheet when the parent view controller is embedded in an `NSPopover` — the sheet often never appears. The editor is now hosted in a normal titled window (`Reopen schedule`), same pattern as *Session setups* and *Configure shortcuts…*. See [`ISSUES.md`](./ISSUES.md) ISSUE-38.
+- DMG renamed to `Later-2.6.2.dmg`.
 
 **v2.6.1** (2026-04-18, this fork)
 - **Hotfix: app crashed on launch on macOS 26.** The per-slot reopen timer introduced in v2.6.0 persisted its "not armed" sentinel as `NSNull()` inside an `NSArray` stored under `UserDefaults[reopen.fireDates]`. `NSNull` is not a valid property-list value, and Tahoe's CFPrefs validator rejects it with an uncaught `NSException` (`_CFPrefsValidateValueForKey → mutateError`). Because the manager is touched the first time `ViewController.refreshUIForActiveSlot()` runs — which happens inside `viewDidLoad`, which we force-load from `applicationDidFinishLaunching` to migrate shortcuts — every cold launch of 2.6.0 aborted with SIGABRT before the popover could render.

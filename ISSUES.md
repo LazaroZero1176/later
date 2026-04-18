@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.6.1 (Build 15)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.6.2 (Build 16)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -283,6 +283,12 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Dateien: `xcode/Test/ReopenTimerManager.swift` (Init + `saveFireDates` + `loadFireDates`), `xcode/Test/Info.plist` (2.6.1 / 15), `xcode/Later.xcodeproj/project.pbxproj` (2.6.1 / 15, beide Configs), `xcode/build-dmg.sh` (`LATER_VERSION="2.6.1"`).
 - Versions-Entscheidung: Patch-Bump (2.6.0 → 2.6.1). Reiner Hotfix, kein Feature-Change, keine Datenmodell-Erweiterung. Der Hotfix wird bewusst *nicht* mit der geplanten Multi-Timer/Save-Action-Erweiterung zusammengeführt (kommt separat in v2.7.0), damit Nutzer sofort einen start-stabilen Build bekommen ohne zusätzlichen Diff-Scope.
 
+### ISSUE-38 · MED · FIX — v2.6.2: „At specific time…" zeigte keinen Editor (`presentAsSheet` im Popover)
+- Symptom: Nutzer wählt im Zeit-Dropdown **„At specific time…"** — es passiert nichts Sichtbares; kein Sheet mit Uhrzeit/Wochentagen.
+- Ursache: `ViewController.presentClockTimeSheet()` rief `presentAsSheet(ClockTimeSheetController)` auf. `NSViewController.presentAsSheet(_:)` benötigt eine geeignete Präsentations-Hierarchie; der `ViewController` der Popover-Inhalte sitzt in einem speziellen Fenster-Setup (`NSPopover`). Dort liefert die API häufig **kein sichtbares Sheet** (Apple-Dokumentation: Präsentation hängt vom Parent-Fenster ab). Kurz: gleiches Muster wie bei `ShortcutSettingsController` / `ExcludeSetupEditorController` — die werden bewusst in einem normalen `NSWindow` gehostet, nicht als Sheet vom Popover-VC.
+- Fix: `ClockTimeSheetController` wird in ein eigenes, titliertes Fenster (`title: "Reopen schedule"`) gepackt (`NSWindow(contentViewController:)`), `NSApp.activate` + `makeKeyAndOrderFront`. Wiederholter Aufruf bringt ein bereits offenes Fenster nach vorne (`clockTimeSheetWindow`). `ClockTimeSheetController` schließt per `view.window?.close()` statt `dismiss(nil)` (letzteres wirkt bei reiner Window-Hosting nicht zuverlässig), implementiert `NSWindowDelegate.windowWillClose` für den roten Schließen-Button (gleiche Semantik wie **Cancel** → `onCancel` + Dropdown-Rebuild), plus `onWindowClosed` zum Nullen der `ViewController`-Referenz.
+- Dateien: `xcode/Test/ViewController.swift`, `xcode/Test/ClockTimeSheetController.swift`, Version 2.6.2 / 16 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -451,6 +457,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-35 | FEATURE (v2.5.0: konfigurierbare globale Shortcuts via `KeyboardShortcuts` 2.4.0, 2 Globals + 6 Slot-Restores, Settings-Sheet im Zahnrad-Menü, `HotKey` aus dem Code entfernt) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/Shortcuts.swift`, `xcode/Test/ShortcutSettingsController.swift`, `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-36 | FEATURE (v2.6.0: per-Slot-Reopen-Timer mit Duration + Clock-Time + Weekday-Recurrence, `ReopenTimerManager` als Single-Source-of-Truth, Fire-Dates persistiert in `UserDefaults[reopen.fireDates]`, SlotButton-Badges, Clock-Time-Sheet) | `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/en.lproj/Main.storyboard`, `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-37 | FIX (v2.6.1 Hotfix: `NSNull` aus `UserDefaults[reopen.fireDates]` raus, `[Double]`-Schema mit `0` als „not armed", Init räumt Legacy-Payloads weg — App startet wieder auf macOS 26) | `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
+| ISSUE-38 | FIX (v2.6.2: Clock-Time-Editor als eigenes Fenster statt `presentAsSheet` im Popover — „At specific time…" sichtbar) | `xcode/Test/ViewController.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

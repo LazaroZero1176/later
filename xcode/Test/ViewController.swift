@@ -230,6 +230,12 @@ class ViewController: NSViewController {
     private let excludeSetupPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
     private weak var excludeSetupEditorWindow: NSWindow?
 
+    /// Clock-time + weekday editor must not use `presentAsSheet` — that API is
+    /// unreliable when this `ViewController` lives inside an `NSPopover` (the
+    /// sheet often never appears). We host `ClockTimeSheetController` in a
+    /// plain titled window instead, matching `ExcludeSetupEditorController`.
+    private var clockTimeSheetWindow: NSWindow?
+
     /// Session slots (1–6) sit inside the options box under the last setting row.
     private var sessionSlotsRoot: NSStackView?
     private var sessionSlotButtons: [NSButton] = []
@@ -1552,6 +1558,11 @@ class ViewController: NSViewController {
     /// optional weekday recurrence pattern. Reuses the storyboard-less
     /// window style already used by `ShortcutSettingsController`.
     private func presentClockTimeSheet() {
+        if let existing = clockTimeSheetWindow, existing.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
         let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
         let sheet = ClockTimeSheetController(
             initialHour: slot.reopenClockHour,
@@ -1567,7 +1578,18 @@ class ViewController: NSViewController {
             // whatever the slot actually holds.
             self?.rebuildTimeDropdownForActiveSlot()
         }
-        presentAsSheet(sheet)
+        sheet.onWindowClosed = { [weak self] in
+            self?.clockTimeSheetWindow = nil
+        }
+        let win = NSWindow(contentViewController: sheet)
+        win.title = "Reopen schedule"
+        win.styleMask = [.titled, .closable]
+        win.isReleasedWhenClosed = false
+        win.setContentSize(NSSize(width: 400, height: 300))
+        win.center()
+        clockTimeSheetWindow = win
+        NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(nil)
     }
 
     private func applyClockTimeChoice(hour: Int, minute: Int, weekdays: Set<Int>) {
