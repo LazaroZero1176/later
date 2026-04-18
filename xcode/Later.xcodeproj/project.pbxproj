@@ -409,8 +409,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.7.3;
-				CURRENT_PROJECT_VERSION = 20;
+				MARKETING_VERSION = 2.7.4;
+				CURRENT_PROJECT_VERSION = 21;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -444,8 +444,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.7.3;
-				CURRENT_PROJECT_VERSION = 20;
+				MARKETING_VERSION = 2.7.4;
+				CURRENT_PROJECT_VERSION = 21;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

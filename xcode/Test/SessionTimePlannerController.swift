@@ -12,11 +12,12 @@ import Cocoa
 
 final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
 
-    private let contentWidth: CGFloat = 500
+    /// Two columns × three rows of slot cards; wide enough for narrow labels per cell.
+    private let contentWidth: CGFloat = 720
     /// NSScrollView has no intrinsic height; without this, the layout chain
     /// collapses and the window can shrink to a useless strip (no slot list).
-    private let minScrollAreaHeight: CGFloat = 520
-    private let minWindowContentHeight: CGFloat = 680
+    private let minScrollAreaHeight: CGFloat = 400
+    private let minWindowContentHeight: CGFloat = 580
 
     private let scrollView = NSScrollView(frame: .zero)
     private let stack = NSStackView()
@@ -38,11 +39,11 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
     override func loadView() {
         draftSlots = SessionSlotStore.allSlots()
 
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 560))
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 600))
         root.translatesAutoresizingMaskIntoConstraints = false
 
         let intro = NSTextField(wrappingLabelWithString:
-            "Per slot: Restore (reopen) runs Restore at the chosen time. Scheduled save runs Save windows for later into this slot at clock time — e.g. morning = capture desktop, evening = restore (set both rows). Click Save below to apply.")
+            "Each card: Restore = run Restore at the set time. Scheduled save = capture the desktop into this slot (Save windows for later) at clock time — e.g. morning save, evening restore. Apply with Save.")
         intro.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         intro.textColor = .secondaryLabelColor
         intro.preferredMaxLayoutWidth = contentWidth - 40
@@ -62,7 +63,7 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         scrollView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         stack.orientation = .vertical
-        stack.spacing = 10
+        stack.spacing = 12
         stack.alignment = .width
         stack.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stack
@@ -174,9 +175,9 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
     private func applyWindowSizingHints() {
         guard let win = view.window else { return }
         // `contentMinSize` applies to the window content rect (below the title bar).
-        win.contentMinSize = NSSize(width: 520, height: minWindowContentHeight)
+        win.contentMinSize = NSSize(width: contentWidth, height: minWindowContentHeight)
         // First layout can still leave a collapsed height before constraints solve; force a usable size.
-        win.setContentSize(NSSize(width: 520, height: minWindowContentHeight))
+        win.setContentSize(NSSize(width: contentWidth, height: minWindowContentHeight))
     }
 
     // MARK: - NSWindowDelegate
@@ -200,6 +201,15 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
 
     // MARK: - Rows
 
+    /// Width for wrapping status lines inside one grid cell (two columns in the scroll area).
+    private var slotCardLabelPreferredMaxWidth: CGFloat {
+        let scrollInset: CGFloat = 12 * 2
+        let columnGap: CGFloat = 10
+        let cardPaddingH: CGFloat = 12 * 2
+        let inner = contentWidth - scrollInset
+        return max(120, (inner - columnGap) / 2 - cardPaddingH)
+    }
+
     private func buildRows() {
         rowPopups = []
         rowDetailLabels = []
@@ -208,83 +218,112 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         rowTitleLabels = []
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        for i in 0..<SessionSlotStore.slotCount {
-            let slot = draftSlots[i]
-            let titleStr: String
-            if slot.hasSession {
-                titleStr = "Slot \(i + 1) — \(slot.sessionName)"
-            } else {
-                titleStr = "Slot \(i + 1) — empty"
+        let labelMaxW = slotCardLabelPreferredMaxWidth
+
+        for row in 0..<3 {
+            let rowStack = NSStackView()
+            rowStack.orientation = .horizontal
+            rowStack.spacing = 12
+            rowStack.distribution = .fillEqually
+            rowStack.alignment = .top
+            rowStack.translatesAutoresizingMaskIntoConstraints = false
+
+            for col in 0..<2 {
+                let i = row * 2 + col
+                let card = buildSlotCard(slotIndex: i, labelMaxWidth: labelMaxW)
+                rowStack.addArrangedSubview(card)
             }
-            let title = NSTextField(labelWithString: titleStr)
-            title.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-            title.translatesAutoresizingMaskIntoConstraints = false
-            rowTitleLabels.append(title)
-
-            let reopenHeading = NSTextField(labelWithString: "Restore (reopen)")
-            reopenHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
-            reopenHeading.textColor = .secondaryLabelColor
-
-            let detail = NSTextField(wrappingLabelWithString: SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i))
-            detail.font = NSFont.systemFont(ofSize: 11)
-            detail.textColor = .secondaryLabelColor
-            detail.preferredMaxLayoutWidth = contentWidth - 40 - 32
-            detail.translatesAutoresizingMaskIntoConstraints = false
-            rowDetailLabels.append(detail)
-
-            let popUp = NSPopUpButton(frame: .zero, pullsDown: false)
-            popUp.translatesAutoresizingMaskIntoConstraints = false
-            popUp.tag = i
-            popUp.target = self
-            popUp.action = #selector(plannerPopupChanged(_:))
-            rebuildMenu(for: popUp, slotIndex: i)
-            rowPopups.append(popUp)
-
-            let saveHeading = NSTextField(labelWithString: "Scheduled save (Save windows for later)")
-            saveHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
-            saveHeading.textColor = .secondaryLabelColor
-
-            let saveDetail = NSTextField(wrappingLabelWithString: SessionTimerEditing.saveScheduleSummaryForPlannerDraft(slot: slot, slotIndex: i))
-            saveDetail.font = NSFont.systemFont(ofSize: 11)
-            saveDetail.textColor = .secondaryLabelColor
-            saveDetail.preferredMaxLayoutWidth = contentWidth - 40 - 32
-            saveDetail.translatesAutoresizingMaskIntoConstraints = false
-            rowSaveDetailLabels.append(saveDetail)
-
-            let savePop = NSPopUpButton(frame: .zero, pullsDown: false)
-            savePop.translatesAutoresizingMaskIntoConstraints = false
-            savePop.tag = i
-            savePop.target = self
-            savePop.action = #selector(savePlannerPopupChanged(_:))
-            rebuildSaveMenu(for: savePop, slotIndex: i)
-            saveRowPopups.append(savePop)
-
-            let inner = NSStackView(views: [
-                title, reopenHeading, detail, popUp, saveHeading, saveDetail, savePop
-            ])
-            inner.orientation = .vertical
-            inner.spacing = 6
-            inner.alignment = .width
-            inner.translatesAutoresizingMaskIntoConstraints = false
-            inner.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14)
-
-            let card = NSView()
-            card.translatesAutoresizingMaskIntoConstraints = false
-            card.wantsLayer = true
-            card.layer?.cornerRadius = 8
-            card.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-            card.layer?.borderWidth = 1
-            card.layer?.borderColor = NSColor.separatorColor.cgColor
-            card.addSubview(inner)
-            NSLayoutConstraint.activate([
-                inner.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-                inner.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-                inner.topAnchor.constraint(equalTo: card.topAnchor),
-                inner.bottomAnchor.constraint(equalTo: card.bottomAnchor)
-            ])
-
-            stack.addArrangedSubview(card)
+            stack.addArrangedSubview(rowStack)
         }
+    }
+
+    private func buildSlotCard(slotIndex i: Int, labelMaxWidth: CGFloat) -> NSView {
+        let slot = draftSlots[i]
+        let titleStr: String
+        if slot.hasSession {
+            titleStr = "Slot \(i + 1) — \(slot.sessionName)"
+        } else {
+            titleStr = "Slot \(i + 1) — empty"
+        }
+        let title = NSTextField(labelWithString: titleStr)
+        title.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        title.lineBreakMode = .byTruncatingTail
+        title.cell?.lineBreakMode = .byTruncatingTail
+        title.translatesAutoresizingMaskIntoConstraints = false
+        rowTitleLabels.append(title)
+
+        let reopenHeading = NSTextField(labelWithString: "Restore")
+        reopenHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        reopenHeading.textColor = .secondaryLabelColor
+        reopenHeading.toolTip = "Runs Restore for this slot at the chosen time (after a delay or at clock time)."
+
+        let detail = NSTextField(wrappingLabelWithString: SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i))
+        detail.font = NSFont.systemFont(ofSize: 10)
+        detail.textColor = .secondaryLabelColor
+        detail.preferredMaxLayoutWidth = labelMaxWidth
+        detail.translatesAutoresizingMaskIntoConstraints = false
+        rowDetailLabels.append(detail)
+
+        let popUp = NSPopUpButton(frame: .zero, pullsDown: false)
+        popUp.translatesAutoresizingMaskIntoConstraints = false
+        popUp.tag = i
+        popUp.target = self
+        popUp.action = #selector(plannerPopupChanged(_:))
+        rebuildMenu(for: popUp, slotIndex: i)
+        rowPopups.append(popUp)
+
+        let saveHeading = NSTextField(labelWithString: "Scheduled save")
+        saveHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        saveHeading.textColor = .secondaryLabelColor
+        saveHeading.toolTip = "Save windows for later into this slot at clock time (same as the green button)."
+
+        let saveDetail = NSTextField(wrappingLabelWithString: SessionTimerEditing.saveScheduleSummaryForPlannerDraft(slot: slot, slotIndex: i))
+        saveDetail.font = NSFont.systemFont(ofSize: 10)
+        saveDetail.textColor = .secondaryLabelColor
+        saveDetail.preferredMaxLayoutWidth = labelMaxWidth
+        saveDetail.translatesAutoresizingMaskIntoConstraints = false
+        rowSaveDetailLabels.append(saveDetail)
+
+        let savePop = NSPopUpButton(frame: .zero, pullsDown: false)
+        savePop.translatesAutoresizingMaskIntoConstraints = false
+        savePop.tag = i
+        savePop.target = self
+        savePop.action = #selector(savePlannerPopupChanged(_:))
+        rebuildSaveMenu(for: savePop, slotIndex: i)
+        saveRowPopups.append(savePop)
+
+        let inner = NSStackView()
+        inner.orientation = .vertical
+        inner.spacing = 4
+        inner.alignment = .width
+        inner.translatesAutoresizingMaskIntoConstraints = false
+        inner.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+
+        inner.addArrangedSubview(title)
+        inner.setCustomSpacing(6, after: title)
+        inner.addArrangedSubview(reopenHeading)
+        inner.addArrangedSubview(detail)
+        inner.addArrangedSubview(popUp)
+        inner.setCustomSpacing(10, after: popUp)
+        inner.addArrangedSubview(saveHeading)
+        inner.addArrangedSubview(saveDetail)
+        inner.addArrangedSubview(savePop)
+
+        let card = NSView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.wantsLayer = true
+        card.layer?.cornerRadius = 8
+        card.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        card.layer?.borderWidth = 1
+        card.layer?.borderColor = NSColor.separatorColor.cgColor
+        card.addSubview(inner)
+        NSLayoutConstraint.activate([
+            inner.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            inner.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            inner.topAnchor.constraint(equalTo: card.topAnchor),
+            inner.bottomAnchor.constraint(equalTo: card.bottomAnchor)
+        ])
+        return card
     }
 
     private enum PlannerMenuTag: Int {
