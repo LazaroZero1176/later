@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.6.0 (Build 14)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.6.1 (Build 15)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -259,6 +259,30 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Dateien: `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ReopenTimerManager.swift` (neu), `xcode/Test/ClockTimeSheetController.swift` (neu), `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/en.lproj/Main.storyboard`, `xcode/Later.xcodeproj/project.pbxproj` (zwei neue Swift-Dateien + Build-Phase + MARKETING_VERSION = 2.6.0 / CURRENT_PROJECT_VERSION = 14), `xcode/Test/Info.plist` (2.6.0 / 14), `xcode/build-dmg.sh` (`LATER_VERSION="2.6.0"`).
 - Versions-Entscheidung: Minor-Bump (2.5.0 → 2.6.0). Neues User-sichtbares Feature + Datenmodell-Erweiterung + neuer UserDefaults-Key → Patch-Bump wäre zu wenig, Major-Bump wäre zu viel (keine Breaking-Changes am bestehenden Vertrag, alte Blobs decodieren transparent).
 
+### ISSUE-37 · CRIT · FIX — v2.6.1 Hotfix: SIGABRT beim Launch auf macOS 26 (`NSNull` in `UserDefaults[reopen.fireDates]`)
+- Beweis: `~/Library/Logs/DiagnosticReports/Later-2026-04-18-133645.ips` (drei reproduzierte Crashes innerhalb von 90 s) — `bundleInfo: CFBundleShortVersionString = 2.6.0, CFBundleVersion = 14`, `exception: EXC_CRASH, signal: SIGABRT`, `asi: "abort() called"`. Faulting-Thread-Backtrace:
+  ```
+  _CFPrefsValidateValueForKey                         → mutateError (objc_exception)
+  -[CFPrefsSource setValues:forKeys:count:…]
+  -[_CFXPreferences setValue:forKey:…]
+  -[NSUserDefaults(NSUserDefaults) setObject:forKey:]
+  ReopenTimerManager.saveFireDates(_:)                 ReopenTimerManager.swift:276
+  ReopenTimerManager.init()                            ReopenTimerManager.swift:44
+  one-time initialization function for shared          ReopenTimerManager.swift:35
+  ViewController.refreshUIForActiveSlot()              ViewController.swift:1154
+  ViewController.viewDidLoad()                         ViewController.swift:276
+  AppDelegate.applicationDidFinishLaunching(_:)        AppDelegate.swift:136
+  ```
+- Root-Cause: `ReopenTimerManager.saveFireDates` serialisierte das per-Slot Fire-Date-Array als `[Any]`, wobei „kein Timer armiert" mit `NSNull()` kodiert wurde. `NSNull` ist jedoch **kein zulässiger Property-List-Value**; der CFPrefs-Validator in macOS 26 (Tahoe) wirft beim ersten `defaults.set([NSNull(), NSNull(), …], forKey: "reopen.fireDates")` eine uncaught `NSException` und die Laufzeit terminiert den Prozess via `abort()`. Getriggert wurde das **synchron beim ersten Zugriff auf `ReopenTimerManager.shared`** — und der erste Zugriff fällt direkt in den Launch-Pfad: `AppDelegate.applicationDidFinishLaunching` forciert `vc.view` (siehe ISSUE-33 Kaltstart-Guard), `viewDidLoad` ruft `refreshUIForActiveSlot()`, das wiederum `ReopenTimerManager.shared.fireDate(for:)` fragt. Ergo: App beendet sich, bevor das Popover überhaupt gerendert werden kann.
+- Warum das v2.6.0-Testing den Crash verpasst hat: während der initialen Smoke-Tests war `UserDefaults[reopen.fireDates]` noch kein valider plist-Wert, aber das v2.5.0-Upgrade-Pfad hatte den Schlüssel *noch gar nicht* in UserDefaults angelegt. `init()` traf daher den Seed-Branch, schrieb `[NSNull, NSNull, …]`, und der Validator crashte erst beim **nächsten** Launch oder beim ersten `schedule`/`cancel`. In der CI-Build-Kette war nie ein echter Zweit-Launch vorgesehen.
+- Fix (nur Persistenzschicht, kein Logik-Change in Schedule/Cancel/Fire):
+  - `saveFireDates(_ dates: [Date?])`: schreibt jetzt ein `[Double]` fester Länge 6 (`timeIntervalSince1970`), `0` = „nicht armiert". `Double` ist plist-legal, keine Sonderbehandlung im Validator nötig.
+  - `loadFireDates()`: liest primär `[Double]`, fällt defensiv auf das Legacy `[Any]`-Schema (inkl. `Date`, `NSNull`, `NSNumber`, `TimeInterval`) zurück — damit Installs, die v2.6.0 einmal crashend gestartet haben und dabei doch einen legalen Eintrag reingeschrieben bekamen, nicht leer aufwachen.
+  - `init()`: ruft zusätzlich `defaults.removeObject(forKey: fireDatesKey)` auf, *bevor* der Seed geschrieben wird, sofern der vorhandene Wert nicht exakt das neue `[Double]`-Schema matcht. Das räumt einen potenziellen `NSNull`-Rest aus v2.6.0 garantiert weg, damit das `set` des Seeds nicht erneut am Validator scheitert.
+- Regressionsrisiko minimal: Timer-Logik, Recurrence-Rechnung, UI und AppDelegate-Wiring bleiben unverändert. Einziger semantischer Unterschied: ein stale Fire-Date mit `0`-TimeInterval wird jetzt als „nicht armiert" interpretiert (vorher hätte `Date(timeIntervalSince1970: 0)` = 1970 als vergangenes Feuer gezählt). 1970-Werte konnten nie entstehen, da `schedule` nur `.now + minutes` bzw. `Calendar.nextDate(...)` schreibt.
+- Dateien: `xcode/Test/ReopenTimerManager.swift` (Init + `saveFireDates` + `loadFireDates`), `xcode/Test/Info.plist` (2.6.1 / 15), `xcode/Later.xcodeproj/project.pbxproj` (2.6.1 / 15, beide Configs), `xcode/build-dmg.sh` (`LATER_VERSION="2.6.1"`).
+- Versions-Entscheidung: Patch-Bump (2.6.0 → 2.6.1). Reiner Hotfix, kein Feature-Change, keine Datenmodell-Erweiterung. Der Hotfix wird bewusst *nicht* mit der geplanten Multi-Timer/Save-Action-Erweiterung zusammengeführt (kommt separat in v2.7.0), damit Nutzer sofort einen start-stabilen Build bekommen ohne zusätzlichen Diff-Scope.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -426,6 +450,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-34 | FEATURE (v2.4.3: Save-Submenu in der Rechtsklick-Quickleiste, Slot-Auswahl + `saveSessionGlobal()`) | `xcode/Test/AppDelegate.swift` |
 | ISSUE-35 | FEATURE (v2.5.0: konfigurierbare globale Shortcuts via `KeyboardShortcuts` 2.4.0, 2 Globals + 6 Slot-Restores, Settings-Sheet im Zahnrad-Menü, `HotKey` aus dem Code entfernt) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/Shortcuts.swift`, `xcode/Test/ShortcutSettingsController.swift`, `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-36 | FEATURE (v2.6.0: per-Slot-Reopen-Timer mit Duration + Clock-Time + Weekday-Recurrence, `ReopenTimerManager` als Single-Source-of-Truth, Fire-Dates persistiert in `UserDefaults[reopen.fireDates]`, SlotButton-Badges, Clock-Time-Sheet) | `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/en.lproj/Main.storyboard`, `xcode/Later.xcodeproj/project.pbxproj` |
+| ISSUE-37 | FIX (v2.6.1 Hotfix: `NSNull` aus `UserDefaults[reopen.fireDates]` raus, `[Double]`-Schema mit `0` als „not armed", Init räumt Legacy-Payloads weg — App startet wieder auf macOS 26) | `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

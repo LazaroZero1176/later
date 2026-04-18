@@ -36,11 +36,24 @@ final class ReopenTimerManager {
 
     private init() {
         // Seed the persisted-fireDates array to fixed length so index writes
-        // below are always safe. Nil entries mean "no timer armed".
-        if let raw = defaults.array(forKey: fireDatesKey) as? [Any],
+        // below are always safe. 0 entries mean "no timer armed".
+        //
+        // v2.6.0 shipped a broken seed that stored NSNull() as the "no timer"
+        // sentinel. NSNull is not a valid plist value; on macOS 26 CFPrefs
+        // rejects it with an uncaught NSException the moment the singleton
+        // is first touched (see ISSUE-37). We now persist a [Double] of
+        // fixed length, with 0 meaning "not armed", which is plist-safe.
+        //
+        // If the on-disk value is anything other than a valid [Double] of
+        // slotCount length (e.g. a legacy array containing NSNull from a
+        // crashed v2.6.0 install), we drop it before re-seeding — otherwise
+        // `defaults.set` against a container with NSNull keeps triggering
+        // the validator.
+        if let raw = defaults.array(forKey: fireDatesKey) as? [Double],
            raw.count == SessionSlotStore.slotCount {
             return
         }
+        defaults.removeObject(forKey: fireDatesKey)
         saveFireDates([Date?](repeating: nil, count: SessionSlotStore.slotCount))
     }
 
@@ -255,24 +268,41 @@ final class ReopenTimerManager {
     // MARK: - Persistence
 
     private func loadFireDates() -> [Date?] {
-        guard let raw = defaults.array(forKey: fireDatesKey),
-              raw.count == SessionSlotStore.slotCount else {
-            return [Date?](repeating: nil, count: SessionSlotStore.slotCount)
+        // Preferred format (v2.6.1+): [Double] of `slotCount` TimeIntervals
+        // since the 1970 epoch, with 0 meaning "no timer armed". We read
+        // that fast path first because it is the only format we write.
+        if let raw = defaults.array(forKey: fireDatesKey) as? [Double],
+           raw.count == SessionSlotStore.slotCount {
+            return raw.map { ti in ti > 0 ? Date(timeIntervalSince1970: ti) : nil }
         }
-        return raw.map { entry -> Date? in
-            if let d = entry as? Date { return d }
-            // `NSNull()` → "no timer". Keep backwards-compatible with any
-            // older writes that may have stored `0` instead of null.
-            if entry is NSNull { return nil }
-            if let ti = entry as? TimeInterval, ti > 0 {
-                return Date(timeIntervalSince1970: ti)
+        // Legacy tolerance (v2.6.0): the broken seed wrote [Any] mixing
+        // Date / NSNull / TimeInterval. On disk this should already have
+        // been scrubbed by init()'s removeObject, but if somebody migrated
+        // their UserDefaults plist by hand we still decode it gracefully.
+        if let raw = defaults.array(forKey: fireDatesKey),
+           raw.count == SessionSlotStore.slotCount {
+            return raw.map { entry -> Date? in
+                if let d = entry as? Date { return d }
+                if entry is NSNull { return nil }
+                if let ti = entry as? TimeInterval, ti > 0 {
+                    return Date(timeIntervalSince1970: ti)
+                }
+                if let n = entry as? NSNumber {
+                    let ti = n.doubleValue
+                    return ti > 0 ? Date(timeIntervalSince1970: ti) : nil
+                }
+                return nil
             }
-            return nil
         }
+        return [Date?](repeating: nil, count: SessionSlotStore.slotCount)
     }
 
     private func saveFireDates(_ dates: [Date?]) {
-        let raw: [Any] = dates.map { $0.map { $0 as Any } ?? NSNull() }
+        // Write a plist-safe [Double]. 0 = no timer armed for that slot.
+        // Rationale for NSNull removal: macOS 26's CFPrefs validator
+        // rejects NSNull() with an uncaught NSException, which crashed
+        // v2.6.0 on first launch — see ISSUE-37.
+        let raw: [Double] = dates.map { $0?.timeIntervalSince1970 ?? 0 }
         defaults.set(raw, forKey: fireDatesKey)
     }
 

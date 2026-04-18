@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.6.0.dmg`](./Later-2.6.0.dmg) from this repo.
+1. Download the latest [`Later-2.6.1.dmg`](./Later-2.6.1.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,12 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.6.1** (2026-04-18, this fork)
+- **Hotfix: app crashed on launch on macOS 26.** The per-slot reopen timer introduced in v2.6.0 persisted its "not armed" sentinel as `NSNull()` inside an `NSArray` stored under `UserDefaults[reopen.fireDates]`. `NSNull` is not a valid property-list value, and Tahoe's CFPrefs validator rejects it with an uncaught `NSException` (`_CFPrefsValidateValueForKey → mutateError`). Because the manager is touched the first time `ViewController.refreshUIForActiveSlot()` runs — which happens inside `viewDidLoad`, which we force-load from `applicationDidFinishLaunching` to migrate shortcuts — every cold launch of 2.6.0 aborted with SIGABRT before the popover could render.
+- Persistence schema is now a plain `[Double]` of fixed length 6, where `0` means "no timer armed" and any other value is a `timeIntervalSince1970`. `saveFireDates` writes only `Double`s, so CFPrefs is happy; `loadFireDates` reads the new format first and still tolerates the v2.6.0 legacy array defensively (`Date`, `NSNull`, `NSNumber`), so anyone who managed to write valid entries before the crash decodes without data loss. The singleton initializer also `removeObject(forKey:)`s any non-`[Double]` payload before re-seeding, so one launch of 2.6.1 scrubs the broken state permanently.
+- No behavior or UI change beyond the crash fix — the per-slot timer feature shipped in 2.6.0 is identical. See [`ISSUES.md`](./ISSUES.md) ISSUE-37.
+- DMG renamed to `Later-2.6.1.dmg`.
 
 **v2.6.0** (2026-04-18, this fork)
 - **Per-slot reopen timer.** The "Reopen this session" checkbox (previously a single global toggle called "Reopen windows in") is now bound to the active session slot. Each of the six slots remembers its own timer mode (off / duration / clock time) and parameters, so slot 1 can auto-reopen in 30 minutes while slot 2 is scheduled for 17:30 tomorrow, and both countdowns run in parallel. Switching between slots no longer cancels the previously running timer.
