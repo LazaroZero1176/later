@@ -15,7 +15,18 @@ enum SessionSlotStore {
     private static let activeIndexKey = "sessionSlots.activeIndex"
     private static let slotsKey = "sessionSlots.payloadsJSON"
 
+    /// Per-slot reopen policy. Mirrors `SessionSlotStore.ReopenMode` case names
+    /// in its `rawValue` so existing JSON encodings keep working after future
+    /// additions. Added in v2.6.0.
+    enum ReopenMode: String, Codable { case off, duration, clockTime }
+
     /// One saved session worth of data (mirrors former flat UserDefaults keys).
+    ///
+    /// v2.6.0 added per-slot reopen-timer fields (`reopenMode`,
+    /// `reopenDurationMinutes`, `reopenClockHour`, `reopenClockMinute`,
+    /// `reopenWeekdays`). They decode with sensible defaults from legacy JSON
+    /// blobs via the custom `init(from:)` below, so pre-2.6.0 installs upgrade
+    /// transparently (`.off` policy, 15 min / 09:00, no recurrence).
     struct Slot: Codable, Equatable {
         var hasSession: Bool
         var lastState: Bool
@@ -26,6 +37,16 @@ enum SessionSlotStore {
         var appsLegacy: [String]
         var appNames: [String]
         var appBundleIDs: [String]
+
+        // v2.6.0 per-slot reopen-timer fields.
+        var reopenMode: ReopenMode = .off
+        var reopenDurationMinutes: Int = 15       // 15 / 30 / 60 / 300
+        var reopenClockHour: Int = 9              // 0...23
+        var reopenClockMinute: Int = 0            // 0...59
+        /// Calendar weekday values (1=Sun, 2=Mon, ... 7=Sat). Empty = one-shot
+        /// clock time. Stored as `[Int]` (Codable friendly); callers use a
+        /// `Set<Int>` for membership checks.
+        var reopenWeekdays: [Int] = []
 
         static let empty = Slot(
             hasSession: false,
@@ -38,6 +59,100 @@ enum SessionSlotStore {
             appNames: [],
             appBundleIDs: []
         )
+
+        init(
+            hasSession: Bool,
+            lastState: Bool,
+            date: String,
+            sessionName: String,
+            sessionFullName: String,
+            totalSessions: String,
+            appsLegacy: [String],
+            appNames: [String],
+            appBundleIDs: [String],
+            reopenMode: ReopenMode = .off,
+            reopenDurationMinutes: Int = 15,
+            reopenClockHour: Int = 9,
+            reopenClockMinute: Int = 0,
+            reopenWeekdays: [Int] = []
+        ) {
+            self.hasSession = hasSession
+            self.lastState = lastState
+            self.date = date
+            self.sessionName = sessionName
+            self.sessionFullName = sessionFullName
+            self.totalSessions = totalSessions
+            self.appsLegacy = appsLegacy
+            self.appNames = appNames
+            self.appBundleIDs = appBundleIDs
+            self.reopenMode = reopenMode
+            self.reopenDurationMinutes = reopenDurationMinutes
+            self.reopenClockHour = reopenClockHour
+            self.reopenClockMinute = reopenClockMinute
+            self.reopenWeekdays = reopenWeekdays
+        }
+
+        // Custom Codable with defaults for the v2.6.0 fields so legacy blobs
+        // decode cleanly.
+        private enum CodingKeys: String, CodingKey {
+            case hasSession, lastState, date, sessionName, sessionFullName
+            case totalSessions, appsLegacy, appNames, appBundleIDs
+            case reopenMode, reopenDurationMinutes
+            case reopenClockHour, reopenClockMinute, reopenWeekdays
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.hasSession       = try c.decode(Bool.self,     forKey: .hasSession)
+            self.lastState        = try c.decode(Bool.self,     forKey: .lastState)
+            self.date             = try c.decode(String.self,   forKey: .date)
+            self.sessionName      = try c.decode(String.self,   forKey: .sessionName)
+            self.sessionFullName  = try c.decode(String.self,   forKey: .sessionFullName)
+            self.totalSessions    = try c.decode(String.self,   forKey: .totalSessions)
+            self.appsLegacy       = try c.decode([String].self, forKey: .appsLegacy)
+            self.appNames         = try c.decode([String].self, forKey: .appNames)
+            self.appBundleIDs     = try c.decode([String].self, forKey: .appBundleIDs)
+            self.reopenMode            = try c.decodeIfPresent(ReopenMode.self, forKey: .reopenMode) ?? .off
+            self.reopenDurationMinutes = try c.decodeIfPresent(Int.self,        forKey: .reopenDurationMinutes) ?? 15
+            self.reopenClockHour       = try c.decodeIfPresent(Int.self,        forKey: .reopenClockHour) ?? 9
+            self.reopenClockMinute     = try c.decodeIfPresent(Int.self,        forKey: .reopenClockMinute) ?? 0
+            self.reopenWeekdays        = try c.decodeIfPresent([Int].self,      forKey: .reopenWeekdays) ?? []
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(hasSession,       forKey: .hasSession)
+            try c.encode(lastState,        forKey: .lastState)
+            try c.encode(date,             forKey: .date)
+            try c.encode(sessionName,      forKey: .sessionName)
+            try c.encode(sessionFullName,  forKey: .sessionFullName)
+            try c.encode(totalSessions,    forKey: .totalSessions)
+            try c.encode(appsLegacy,       forKey: .appsLegacy)
+            try c.encode(appNames,         forKey: .appNames)
+            try c.encode(appBundleIDs,     forKey: .appBundleIDs)
+            try c.encode(reopenMode,            forKey: .reopenMode)
+            try c.encode(reopenDurationMinutes, forKey: .reopenDurationMinutes)
+            try c.encode(reopenClockHour,       forKey: .reopenClockHour)
+            try c.encode(reopenClockMinute,     forKey: .reopenClockMinute)
+            try c.encode(reopenWeekdays,        forKey: .reopenWeekdays)
+        }
+
+        /// Resolved policy for the current timer fields. Used by
+        /// `ReopenTimerManager` and the UI.
+        var activeReopenPolicy: ReopenPolicy {
+            switch reopenMode {
+            case .off:
+                return .off
+            case .duration:
+                return .duration(minutes: reopenDurationMinutes)
+            case .clockTime:
+                return .clockTime(
+                    hour: reopenClockHour,
+                    minute: reopenClockMinute,
+                    weekdays: Set(reopenWeekdays)
+                )
+            }
+        }
     }
 
     // MARK: - Migration

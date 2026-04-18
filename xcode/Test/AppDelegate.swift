@@ -89,7 +89,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "ignoreSystem": true,
             "closeApps": false,
             "keepWindowsOpen": false,
-            "waitCheckbox": false,
+            // v2.6.0 moved the "Reopen this session" flag to per-slot storage
+            // (SessionSlotStore.Slot.reopenMode); the old global
+            // `waitCheckbox` UserDefaults key is no longer read by anyone.
             "switchKey": false,
             "showDockIcon": true,
             "showMenuBarIcon": true,
@@ -135,6 +137,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         installShortcutListeners()
         applyShortcutMasterToggle()
+
+        // Per-slot reopen timers (v2.6.0). The manager owns the actual
+        // Timer instances and persists each slot's absolute fire date, so
+        // timers survive an app quit. When a timer fires, it routes through
+        // `restoreSessionGlobal()` on the loaded ViewController.
+        ReopenTimerManager.shared.onFire = { [weak self] slotIdx in
+            guard let self else { return }
+            SessionSlotStore.setActiveIndex(slotIdx)
+            self.runOnVC { $0.restoreSessionGlobal() }
+        }
+        ReopenTimerManager.shared.restoreFromDisk()
 
         // Apply Dock + menu bar visibility (reads showDockIcon / showMenuBarIcon).
         DispatchQueue.main.async { [weak self] in

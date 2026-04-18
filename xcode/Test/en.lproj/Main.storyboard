@@ -929,7 +929,7 @@
                                         </button>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tUo-Sf-aim">
                                             <rect key="frame" x="20" y="270" width="158" height="32"/>
-                                            <buttonCell key="cell" type="bevel" title=" Reopen windows in" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="DDI-HL-Sgh">
+                                            <buttonCell key="cell" type="bevel" title=" Reopen this session" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="DDI-HL-Sgh">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                                 <font key="font" metaFont="system"/>
                                             </buttonCell>

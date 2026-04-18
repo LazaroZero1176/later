@@ -29,6 +29,8 @@
 		E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234507 /* SessionSlotStore.swift */; };
 		E4C11A012345678901234602 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234601 /* Shortcuts.swift */; };
 		E4C11A012345678901234604 /* ShortcutSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234603 /* ShortcutSettingsController.swift */; };
+		E4C11A012345678901234702 /* ReopenTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234701 /* ReopenTimerManager.swift */; };
+		E4C11A012345678901234704 /* ClockTimeSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234703 /* ClockTimeSheetController.swift */; };
 		E4C11A012345678901234606 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E4C11A012345678901234605 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +43,8 @@
 		E4C11A012345678901234507 /* SessionSlotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSlotStore.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234601 /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234603 /* ShortcutSettingsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsController.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234701 /* ReopenTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReopenTimerManager.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234703 /* ClockTimeSheetController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockTimeSheetController.swift; sourceTree = "<group>"; };
 		EC376246279C641E003144C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Test/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		EC37624B279C641E003144C7 /* Test.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Test.entitlements; sourceTree = "<group>"; };
 		EC376251279C66F4003144C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -109,6 +113,8 @@
 				E4C11A012345678901234507 /* SessionSlotStore.swift */,
 				E4C11A012345678901234601 /* Shortcuts.swift */,
 				E4C11A012345678901234603 /* ShortcutSettingsController.swift */,
+				E4C11A012345678901234701 /* ReopenTimerManager.swift */,
+				E4C11A012345678901234703 /* ClockTimeSheetController.swift */,
 				ECF31AE627BC4DF200994D3C /* ViewController2.xib */,
 				EC376246279C641E003144C7 /* Assets.xcassets */,
 				EC376248279C641E003144C7 /* Main.storyboard */,
@@ -230,6 +236,8 @@
 				E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */,
 				E4C11A012345678901234602 /* Shortcuts.swift in Sources */,
 				E4C11A012345678901234604 /* ShortcutSettingsController.swift in Sources */,
+				E4C11A012345678901234702 /* ReopenTimerManager.swift in Sources */,
+				E4C11A012345678901234704 /* ClockTimeSheetController.swift in Sources */,
 				EC376243279C641D003144C7 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -389,8 +397,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.5.0;
-				CURRENT_PROJECT_VERSION = 13;
+				MARKETING_VERSION = 2.6.0;
+				CURRENT_PROJECT_VERSION = 14;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -424,8 +432,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.5.0;
-				CURRENT_PROJECT_VERSION = 13;
+				MARKETING_VERSION = 2.6.0;
+				CURRENT_PROJECT_VERSION = 14;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

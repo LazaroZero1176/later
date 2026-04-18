@@ -14,8 +14,20 @@ import KeyboardShortcuts
 /// Borderless, layer-drawn button used for the Session slot grid.
 /// Native `.rounded` bezel buttons render badly on the dark options box
 /// (they lose their bezel when `wantsLayer` is enabled), so we draw our own.
+///
+/// v2.6.0 adds a per-slot reopen-timer indicator in the top-right corner
+/// (see `setTimerArmed`): a small clock symbol for one-shot schedules and a
+/// "repeat" symbol for recurring clock-time schedules. The badge is drawn
+/// directly onto the button's layer so it redraws cheaply alongside the
+/// existing color updates.
 final class SlotButton: NSButton {
+
+    enum ArmedKind: Equatable { case none, oneShot, recurring }
+
     private var isActiveSlot = false
+    private var armedKind: ArmedKind = .none
+    private let badgeLayer = CALayer()
+    private let badgeImageLayer = CALayer()
 
     init(slotIndex: Int, target: AnyObject?, action: Selector?) {
         super.init(frame: .zero)
@@ -31,15 +43,87 @@ final class SlotButton: NSButton {
         self.layer?.cornerRadius = 6
         self.setContentHuggingPriority(.defaultLow, for: .horizontal)
         self.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        // Badge layer sits in the top-right corner. Hidden by default.
+        badgeLayer.backgroundColor = NSColor(white: 0, alpha: 0.35).cgColor
+        badgeLayer.cornerRadius = 7
+        badgeLayer.isHidden = true
+        badgeLayer.addSublayer(badgeImageLayer)
+        badgeImageLayer.contentsGravity = .resizeAspect
+        layer?.addSublayer(badgeLayer)
+
         applyColors()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    override func layout() {
+        super.layout()
+        let badgeSize: CGFloat = 14
+        let inset: CGFloat = 3
+        let x = bounds.width - badgeSize - inset
+        let y = bounds.height - badgeSize - inset
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        badgeLayer.frame = NSRect(x: x, y: y, width: badgeSize, height: badgeSize)
+        badgeImageLayer.frame = badgeLayer.bounds.insetBy(dx: 2, dy: 2)
+        CATransaction.commit()
+    }
+
     func setActive(_ on: Bool) {
         guard isActiveSlot != on else { return }
         isActiveSlot = on
         applyColors()
+    }
+
+    /// Called by the per-second ticker in `ViewController`. Updates the
+    /// visible badge and tooltip. Cheap no-op when nothing changed.
+    func setTimerArmed(_ kind: ArmedKind, tooltip: String?) {
+        self.toolTip = tooltip
+        guard armedKind != kind else { return }
+        armedKind = kind
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        switch kind {
+        case .none:
+            badgeLayer.isHidden = true
+            badgeImageLayer.contents = nil
+        case .oneShot, .recurring:
+            badgeLayer.isHidden = false
+            let symbolName = (kind == .recurring) ? "arrow.clockwise" : "clock"
+            if let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .semibold)
+                let cfg = img.withSymbolConfiguration(config) ?? img
+                cfg.isTemplate = true
+                badgeImageLayer.contents = tintedCGImage(for: cfg, tint: .white)
+            }
+        }
+        CATransaction.commit()
+    }
+
+    private func tintedCGImage(for image: NSImage, tint: NSColor) -> CGImage? {
+        let size = image.size == .zero ? NSSize(width: 12, height: 12) : image.size
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width * 2),
+            pixelsHigh: Int(size.height * 2),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )
+        rep?.size = size
+        guard let rep else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(origin: .zero, size: size))
+        tint.set()
+        NSRect(origin: .zero, size: size).fill(using: .sourceIn)
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.cgImage
     }
 
     private func applyColors() {
@@ -118,10 +202,19 @@ class ViewController: NSViewController {
     )
 
 
-    var timer = Timer()
-    var timerCount = Timer()
     let settingsMenu = NSMenu()
-    var count: Double = 0.0
+
+    /// v2.6.0 — single UI ticker that refreshes the active slot's countdown
+    /// label and every SlotButton's badge/tooltip once a second. Driven by
+    /// `ReopenTimerManager.shared.fireDate(for:)`; the manager owns the
+    /// actual restore timers. Nil when no slot is armed.
+    private var uiTicker: Timer?
+
+    /// Menu item identifier for the dynamic "At HH:MM [· weekdays]" entry we
+    /// insert at the top of `timeDropdown` while the active slot is in
+    /// clock-time mode. Using a tag lets us find / replace it without
+    /// pattern-matching the title.
+    private let clockDropdownItemTag = 7711
 
 
     @IBOutlet weak var boxHeight: NSLayoutConstraint!
@@ -164,7 +257,11 @@ class ViewController: NSViewController {
         closeApps.state = defaults.bool(forKey: "closeApps") ? .on : .off
         ignoreFinder.state = defaults.bool(forKey: "ignoreSystem") ? .on : .off
         keepWindowsOpen.state = defaults.bool(forKey: "keepWindowsOpen") ? .on : .off
-        waitCheckbox.state = defaults.bool(forKey: "waitCheckbox") ? .on : .off
+        // v2.6.0: the "Reopen this session" checkbox + the time dropdown are
+        // per-slot, driven by SessionSlotStore.Slot.reopenMode. See
+        // `refreshUIForActiveSlot()` for the binding logic.
+        timeDropdown.target = self
+        timeDropdown.action = #selector(timeDropdownChanged(_:))
 
         // Reflect the master on/off state in the gear menu checkmark.
         // `switchKey == true` means shortcuts are disabled, so the
@@ -235,6 +332,17 @@ class ViewController: NSViewController {
     override func viewWillAppear() {
         super.viewWillAppear()
         updatePreferredContentSize()
+        // Make sure the dropdown and countdown reflect the live state each
+        // time the popover is shown — timers may have fired while closed.
+        refreshUIForActiveSlot()
+        startUiTickerIfNeeded()
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        // No need to keep the 1s UI ticker alive while the popover is gone;
+        // the manager owns the actual restore timers.
+        stopUiTicker()
     }
 
     override func viewDidLayout() {
@@ -290,41 +398,119 @@ class ViewController: NSViewController {
         ]
     }
 
-    // MARK: - Timer
+    // MARK: - Timer UI ticker (v2.6.0)
+    //
+    // The actual per-slot restore timers live in `ReopenTimerManager`. This
+    // ticker only drives the visible countdown on the active slot's
+    // `timeLabel` plus every SlotButton's badge / tooltip. We start it when
+    // at least one slot is armed and stop it when all slots are quiet, so
+    // the popover does no wake-ups at rest.
 
-    @objc func counter() {
-        if count >= 0 {
-            count -= 1.0
-            hmsFrom(seconds: Int(count)) { hours, minutes, seconds in
-                let h = self.getStringFrom(seconds: hours)
-                let m = self.getStringFrom(seconds: minutes)
-                let s = self.getStringFrom(seconds: seconds)
-                self.timeLabel.stringValue = "Reopening in \(h):\(m):\(s)"
-            }
-        } else {
-            timerCount.invalidate()
+    private func startUiTickerIfNeeded() {
+        guard uiTicker == nil else { return }
+        guard anySlotArmed() else { return }
+        let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.tickUI()
+        }
+        RunLoop.main.add(t, forMode: .common)
+        uiTicker = t
+        tickUI()
+    }
+
+    private func stopUiTicker() {
+        uiTicker?.invalidate()
+        uiTicker = nil
+    }
+
+    private func anySlotArmed() -> Bool {
+        for i in 0..<SessionSlotStore.slotCount {
+            if ReopenTimerManager.shared.fireDate(for: i) != nil { return true }
+        }
+        return false
+    }
+
+    private func tickUI() {
+        refreshSlotBadges()
+        updateTimeLabelForActiveSlot()
+        if !anySlotArmed() {
+            stopUiTicker()
         }
     }
 
-    func waitForSession() {
-        // Default to 15 min instead of dev-leftover 10 s (ISSUE-20).
-        var time: Double = 60 * 15
-        switch timeDropdown.titleOfSelectedItem {
-        case "15 minutes": time = 60 * 15
-        case "30 minutes": time = 60 * 30
-        case "1 hour":     time = 60 * 60
-        case "5 hours":    time = 60 * 60 * 5
-        default: break
+    private func refreshSlotBadges() {
+        let mgr = ReopenTimerManager.shared
+        for btn in sessionSlotButtons {
+            guard let sb = btn as? SlotButton else { continue }
+            let idx = sb.tag
+            if mgr.fireDate(for: idx) != nil {
+                let kind: SlotButton.ArmedKind = mgr.isRecurring(slotIndex: idx) ? .recurring : .oneShot
+                sb.setTimerArmed(kind, tooltip: slotTooltip(for: idx))
+            } else {
+                sb.setTimerArmed(.none, tooltip: nil)
+            }
         }
-        count = time
-        hmsFrom(seconds: Int(count)) { hours, minutes, seconds in
-            let h = self.getStringFrom(seconds: hours)
-            let m = self.getStringFrom(seconds: minutes)
-            let s = self.getStringFrom(seconds: seconds)
-            self.timeLabel.stringValue = "Reopening in \(h):\(m):\(s)"
+    }
+
+    private func slotTooltip(for slotIndex: Int) -> String? {
+        let slot = SessionSlotStore.slot(at: slotIndex)
+        let mgr = ReopenTimerManager.shared
+        guard let fire = mgr.fireDate(for: slotIndex) else { return nil }
+        let df = DateFormatter()
+        df.timeStyle = .short
+        df.dateStyle = .none
+        let hhmm = df.string(from: fire)
+        switch slot.activeReopenPolicy {
+        case .off:
+            return nil
+        case .duration:
+            return mgr.remainingString(for: slotIndex)
+        case .clockTime(_, _, let weekdays):
+            if weekdays.isEmpty {
+                return "Reopens at \(hhmm)"
+            }
+            return "Repeats \(weekdayListString(weekdays)) · next \(hhmm)"
         }
-        timer = Timer.scheduledTimer(timeInterval: time, target: self, selector: #selector(restoreSessionGlobal), userInfo: nil, repeats: false)
-        timerCount = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(counter), userInfo: nil, repeats: true)
+    }
+
+    private func updateTimeLabelForActiveSlot() {
+        let idx = SessionSlotStore.activeIndex()
+        let mgr = ReopenTimerManager.shared
+        guard let fire = mgr.fireDate(for: idx) else {
+            hideTimer()
+            return
+        }
+        let slot = SessionSlotStore.slot(at: idx)
+        showTimer()
+        switch slot.activeReopenPolicy {
+        case .off:
+            hideTimer()
+        case .duration:
+            timeLabel.stringValue = mgr.remainingString(for: idx) ?? ""
+        case .clockTime(_, _, let weekdays):
+            let df = DateFormatter()
+            df.timeStyle = .short
+            df.dateStyle = .none
+            let hhmm = df.string(from: fire)
+            if weekdays.isEmpty {
+                timeLabel.stringValue = "Reopens at \(hhmm)"
+            } else {
+                timeLabel.stringValue = "Repeats \(weekdayListString(weekdays)) · next \(hhmm)"
+            }
+        }
+    }
+
+    /// Compact, locale-independent weekday list — "Mon, Tue, Thu" or "Daily"
+    /// when all seven days are selected. Sort order is Mon first (ISO-ish),
+    /// which reads more naturally in the tooltip than `Calendar`'s default
+    /// (Sun=1).
+    private func weekdayListString(_ weekdays: Set<Int>) -> String {
+        if weekdays.count == 7 { return "Daily" }
+        let order = [2, 3, 4, 5, 6, 7, 1]   // Mon ... Sat, then Sun
+        let names = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return order
+            .filter { weekdays.contains($0) }
+            .compactMap { (1...7).contains($0) ? names[$0] : nil }
+            .joined(separator: ", ")
     }
 
     // MARK: - App filtering helpers
@@ -602,7 +788,69 @@ class ViewController: NSViewController {
     }
 
     @IBAction func waitCheckboxChange(_ sender: Any) {
-        defaults.set(waitCheckbox.state == .on, forKey: "waitCheckbox")
+        let on = waitCheckbox.state == .on
+        let idx = SessionSlotStore.activeIndex()
+        var slot = SessionSlotStore.slot(at: idx)
+        if on {
+            // Switch into the mode the dropdown's current selection implies
+            // (duration vs clock-time). Default to duration when the dropdown
+            // still shows a plain duration item.
+            if slot.reopenMode == .off {
+                slot.reopenMode = .duration
+            }
+            SessionSlotStore.setSlot(at: idx, slot)
+            // Arm immediately only for recurring clock-time schedules — those
+            // are autonomous (no Save needed). Duration and one-shot clock
+            // remain save-triggered.
+            if case .clockTime(_, _, let wd) = slot.activeReopenPolicy,
+               !wd.isEmpty, slot.hasSession {
+                ReopenTimerManager.shared.schedule(slotIndex: idx, policy: slot.activeReopenPolicy)
+            }
+        } else {
+            slot.reopenMode = .off
+            SessionSlotStore.setSlot(at: idx, slot)
+            ReopenTimerManager.shared.cancel(slotIndex: idx)
+        }
+        rebuildTimeDropdownForActiveSlot()
+        refreshSlotBadges()
+        startUiTickerIfNeeded()
+    }
+
+    /// Fired when the user picks one of the `timeDropdown` entries. We drive
+    /// the active slot's `reopenMode` / `reopenDurationMinutes` /
+    /// `reopenClock*` fields from the selection. The "At specific time…"
+    /// item opens a programmatic sheet instead of persisting anything.
+    @IBAction func timeDropdownChanged(_ sender: NSPopUpButton) {
+        guard let item = sender.selectedItem else { return }
+        // The dynamic "At HH:MM" header (clockDropdownItemTag) simply
+        // re-opens the editor so the user can adjust the schedule.
+        if item.tag == clockDropdownItemTag {
+            presentClockTimeSheet()
+            return
+        }
+        if item.title == clockMenuTitle {
+            presentClockTimeSheet()
+            return
+        }
+        // Duration choices.
+        let minutes: Int?
+        switch item.title {
+        case "15 minutes": minutes = 15
+        case "30 minutes": minutes = 30
+        case "1 hour":     minutes = 60
+        case "5 hours":    minutes = 300
+        default: minutes = nil
+        }
+        guard let mins = minutes else { return }
+        let idx = SessionSlotStore.activeIndex()
+        var slot = SessionSlotStore.slot(at: idx)
+        slot.reopenMode = .duration
+        slot.reopenDurationMinutes = mins
+        SessionSlotStore.setSlot(at: idx, slot)
+        // Duration timers arm on Save; just cancel any stale arming here.
+        ReopenTimerManager.shared.cancel(slotIndex: idx)
+        rebuildTimeDropdownForActiveSlot()
+        refreshSlotBadges()
     }
 
     @IBAction func click(_ sender: Any) {
@@ -629,9 +877,9 @@ class ViewController: NSViewController {
     }
 
     @IBAction func cancelTimeClick(_ sender: Any) {
-        timer.invalidate()
-        timerCount.invalidate()
+        ReopenTimerManager.shared.cancel(slotIndex: SessionSlotStore.activeIndex())
         hideTimer()
+        refreshSlotBadges()
     }
 
     // MARK: - Layout helpers
@@ -746,11 +994,27 @@ class ViewController: NSViewController {
             appNames: arrayNames,
             appBundleIDs: bundleIDs
         )
-        SessionSlotStore.setSlot(at: SessionSlotStore.activeIndex(), slot)
+        let activeIdx = SessionSlotStore.activeIndex()
+        // Preserve the active slot's reopen config across the save (the
+        // Slot struct we just built uses default timer fields). Pull the
+        // existing settings, then overwrite everything else.
+        let previous = SessionSlotStore.slot(at: activeIdx)
+        var merged = slot
+        merged.reopenMode             = previous.reopenMode
+        merged.reopenDurationMinutes  = previous.reopenDurationMinutes
+        merged.reopenClockHour        = previous.reopenClockHour
+        merged.reopenClockMinute      = previous.reopenClockMinute
+        merged.reopenWeekdays         = previous.reopenWeekdays
+        SessionSlotStore.setSlot(at: activeIdx, merged)
+
+        // Delegate timer arming to the manager. Off → no-op, duration →
+        // now + N, clock-time → next matching HH:MM (optionally filtered by
+        // weekdays). Recurring schedules keep rearming themselves in the
+        // manager's fire handler.
+        ReopenTimerManager.shared.schedule(slotIndex: activeIdx, policy: merged.activeReopenPolicy)
+
         refreshUIForActiveSlot()
-        if waitCheckbox.state == .on {
-            waitForSession()
-        }
+        startUiTickerIfNeeded()
 
         (NSApp.delegate as? AppDelegate)?.closePopover(self)
     }
@@ -852,22 +1116,33 @@ class ViewController: NSViewController {
     // MARK: - Popover states
 
     func noSessions() {
-        SessionSlotStore.setSlot(at: SessionSlotStore.activeIndex(), .empty)
+        let idx = SessionSlotStore.activeIndex()
+        // Keep the slot's reopen config — the user explicitly wiped the
+        // session contents, not the schedule. Refilling this slot later
+        // will auto-rearm recurring schedules (see `saveSessionGlobal`).
+        let existing = SessionSlotStore.slot(at: idx)
+        var cleared = SessionSlotStore.Slot.empty
+        cleared.reopenMode            = existing.reopenMode
+        cleared.reopenDurationMinutes = existing.reopenDurationMinutes
+        cleared.reopenClockHour       = existing.reopenClockHour
+        cleared.reopenClockMinute     = existing.reopenClockMinute
+        cleared.reopenWeekdays        = existing.reopenWeekdays
+        SessionSlotStore.setSlot(at: idx, cleared)
+        ReopenTimerManager.shared.cancel(slotIndex: idx)
         applyEmptySlotUIOnly()
         updateSlotButtonHighlights()
-    }
-
-    func hmsFrom(seconds: Int, completion: @escaping (_ hours: Int, _ minutes: Int, _ seconds: Int) -> Void) {
-        completion(seconds / 3600, (seconds % 3600) / 60, (seconds % 3600) % 60)
-    }
-
-    func getStringFrom(seconds: Int) -> String {
-        return seconds < 10 ? "0\(seconds)" : "\(seconds)"
+        refreshSlotBadges()
     }
 
     /// Reloads labels, preview, and layout from the active session slot.
     private func refreshUIForActiveSlot() {
         let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        // Bind the per-slot timer UI *before* session-dependent sections so
+        // the dropdown and checkbox reflect the freshly activated slot even
+        // when it has no saved session.
+        waitCheckbox.state = (slot.reopenMode == .off) ? .off : .on
+        rebuildTimeDropdownForActiveSlot()
+
         if slot.hasSession {
             setSessionBoxPlaceholderVisible(false)
             dateLabel.stringValue = slot.date
@@ -876,8 +1151,9 @@ class ViewController: NSViewController {
             sessionLabel.lineBreakMode = .byTruncatingTail
             sessionLabel.toolTip = slot.sessionFullName
             numberOfSessions.title = slot.totalSessions
-            if waitCheckbox.state == .on {
+            if ReopenTimerManager.shared.fireDate(for: SessionSlotStore.activeIndex()) != nil {
                 showTimer()
+                updateTimeLabelForActiveSlot()
             } else {
                 hideTimer()
             }
@@ -889,6 +1165,7 @@ class ViewController: NSViewController {
             applyEmptySlotUIOnly()
         }
         updateSlotButtonHighlights()
+        refreshSlotBadges()
         syncExcludeSetupPopUp()
         checkAnyWindows()
         updatePreferredContentSize()
@@ -1024,8 +1301,8 @@ class ViewController: NSViewController {
     @objc private func sessionSlotClicked(_ sender: NSButton) {
         let idx = sender.tag
         guard idx >= 0 && idx < SessionSlotStore.slotCount else { return }
-        timer.invalidate()
-        timerCount.invalidate()
+        // Per-slot timers run independently; switching slots must not kill
+        // the previously active slot's countdown (v2.6.0).
         SessionSlotStore.setActiveIndex(idx)
         refreshUIForActiveSlot()
     }
@@ -1171,6 +1448,151 @@ class ViewController: NSViewController {
         ExcludeSetupStore.setCurrentMode(newMode)
         applyExcludeSetupRowStyle()
         checkAnyWindows()
+    }
+
+    // MARK: - Time dropdown binding (v2.6.0)
+
+    /// Title used for the "At specific time…" menu entry. Kept as a constant
+    /// so the action handler can identify clicks without depending on the
+    /// menu item's tag (storyboard-declared items ship with tag 0).
+    private let clockMenuTitle = "At specific time…"
+
+    /// Rebuild the `timeDropdown` menu from the active slot's current
+    /// `reopenMode`. While in clock-time mode we insert a dynamic header
+    /// item showing "At 13:30" (or "Mon, Tue · 13:30" when recurring) so
+    /// the user sees their schedule at a glance without opening the sheet.
+    /// Called from `refreshUIForActiveSlot` and after every timer edit.
+    private func rebuildTimeDropdownForActiveSlot() {
+        let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        // Dynamic clock-time header (only present while the slot is in
+        // clock-time mode). Clicking it re-opens the editor.
+        if slot.reopenMode == .clockTime {
+            let header = NSMenuItem(title: clockHeaderTitle(for: slot),
+                                    action: #selector(timeDropdownChanged(_:)),
+                                    keyEquivalent: "")
+            header.tag = clockDropdownItemTag
+            header.target = self
+            menu.addItem(header)
+            menu.addItem(NSMenuItem.separator())
+        }
+
+        // Duration choices. Keep wording in sync with the localized
+        // storyboard defaults so existing screenshots / docs stay valid.
+        for title in ["15 minutes", "30 minutes", "1 hour", "5 hours"] {
+            let it = NSMenuItem(title: title,
+                                action: #selector(timeDropdownChanged(_:)),
+                                keyEquivalent: "")
+            it.target = self
+            if slot.reopenMode == .duration,
+               durationMinutes(for: title) == slot.reopenDurationMinutes {
+                it.state = .on
+            }
+            menu.addItem(it)
+        }
+        menu.addItem(NSMenuItem.separator())
+
+        let clock = NSMenuItem(title: clockMenuTitle,
+                               action: #selector(timeDropdownChanged(_:)),
+                               keyEquivalent: "")
+        clock.target = self
+        menu.addItem(clock)
+
+        timeDropdown.menu = menu
+
+        // Select the item that matches the current mode.
+        switch slot.reopenMode {
+        case .clockTime:
+            timeDropdown.selectItem(withTag: clockDropdownItemTag)
+        case .duration:
+            let title = titleForDuration(slot.reopenDurationMinutes)
+            timeDropdown.selectItem(withTitle: title)
+        case .off:
+            // Leave the default selection (first duration) so the dropdown
+            // reads sensibly when the user later ticks the checkbox.
+            timeDropdown.selectItem(at: 0)
+        }
+    }
+
+    private func clockHeaderTitle(for slot: SessionSlotStore.Slot) -> String {
+        let hh = String(format: "%02d", max(0, min(23, slot.reopenClockHour)))
+        let mm = String(format: "%02d", max(0, min(59, slot.reopenClockMinute)))
+        let wd = Set(slot.reopenWeekdays)
+        if wd.isEmpty {
+            return "At \(hh):\(mm)"
+        }
+        return "\(weekdayListString(wd)) · \(hh):\(mm)"
+    }
+
+    private func durationMinutes(for title: String) -> Int? {
+        switch title {
+        case "15 minutes": return 15
+        case "30 minutes": return 30
+        case "1 hour":     return 60
+        case "5 hours":    return 300
+        default: return nil
+        }
+    }
+
+    private func titleForDuration(_ minutes: Int) -> String {
+        switch minutes {
+        case 15:  return "15 minutes"
+        case 30:  return "30 minutes"
+        case 60:  return "1 hour"
+        case 300: return "5 hours"
+        default:  return "15 minutes"
+        }
+    }
+
+    // MARK: - Clock-time sheet (v2.6.0)
+
+    /// Present a compact programmatic sheet for picking HH:MM plus an
+    /// optional weekday recurrence pattern. Reuses the storyboard-less
+    /// window style already used by `ShortcutSettingsController`.
+    private func presentClockTimeSheet() {
+        let slot = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        let sheet = ClockTimeSheetController(
+            initialHour: slot.reopenClockHour,
+            initialMinute: slot.reopenClockMinute,
+            initialWeekdays: Set(slot.reopenWeekdays)
+        )
+        sheet.onConfirm = { [weak self] hour, minute, weekdays in
+            self?.applyClockTimeChoice(hour: hour, minute: minute, weekdays: weekdays)
+        }
+        sheet.onCancel = { [weak self] in
+            // The user already pre-selected "At specific time…" in the
+            // dropdown; if they cancel we put the selection back to
+            // whatever the slot actually holds.
+            self?.rebuildTimeDropdownForActiveSlot()
+        }
+        presentAsSheet(sheet)
+    }
+
+    private func applyClockTimeChoice(hour: Int, minute: Int, weekdays: Set<Int>) {
+        let idx = SessionSlotStore.activeIndex()
+        var slot = SessionSlotStore.slot(at: idx)
+        slot.reopenMode = .clockTime
+        slot.reopenClockHour = max(0, min(23, hour))
+        slot.reopenClockMinute = max(0, min(59, minute))
+        slot.reopenWeekdays = weekdays.sorted()
+        SessionSlotStore.setSlot(at: idx, slot)
+        // Reflect mode change on the "Reopen this session" checkbox.
+        waitCheckbox.state = .on
+        // Arm immediately if the slot has content — this is the whole point
+        // of recurring schedules ("set and forget"). One-shot clock times
+        // with content also arm here, matching the user's expectation that
+        // confirming a time schedules it.
+        if slot.hasSession {
+            ReopenTimerManager.shared.schedule(slotIndex: idx, policy: slot.activeReopenPolicy)
+        } else {
+            ReopenTimerManager.shared.cancel(slotIndex: idx)
+        }
+        rebuildTimeDropdownForActiveSlot()
+        refreshSlotBadges()
+        startUiTickerIfNeeded()
+        updateTimeLabelForActiveSlot()
     }
 
     @objc private func openExcludeSetupEditor() {
