@@ -3,14 +3,16 @@
 //  Later
 //
 //  v2.7.0 — central window listing all six session slots with reopen timer
-//  status. Per-slot controls mirror the popover (off / duration / clock).
-//  "Clock time…" opens `ClockTimeSheetController`. Future work: multiple
-//  scheduled entries per slot with Save vs Restore actions (ISSUE roadmap).
+//  status. Edits are held in memory until Save; Cancel discards. Per-slot
+//  controls mirror the popover (off / duration / clock). "Clock time…"
+//  opens `ClockTimeSheetController`.
 //
 
 import Cocoa
 
-final class SessionTimePlannerController: NSViewController {
+final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
+
+    private let contentWidth: CGFloat = 500
 
     private let scrollView = NSScrollView(frame: .zero)
     private let stack = NSStackView()
@@ -18,35 +20,79 @@ final class SessionTimePlannerController: NSViewController {
     private var rowDetailLabels: [NSTextField] = []
     private var rowTitleLabels: [NSTextField] = []
 
+    /// Draft copy — committed on Save only.
+    private var draftSlots: [SessionSlotStore.Slot] = []
+
     /// Single clock editor at a time (same pattern as `ViewController`).
     private var clockSheetWindow: NSWindow?
 
     private var timerObserver: NSObjectProtocol?
 
     override func loadView() {
-        let root = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 520))
+        draftSlots = SessionSlotStore.allSlots()
+
+        let root = NSView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: 560))
+        root.translatesAutoresizingMaskIntoConstraints = false
+
+        let intro = NSTextField(wrappingLabelWithString:
+            "Plan reopen timers for each session slot. Duration timers start when you save a session to that slot; clock schedules can repeat on selected weekdays. Click Save to apply your changes.")
+        intro.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        intro.textColor = .secondaryLabelColor
+        intro.preferredMaxLayoutWidth = contentWidth - 40
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
 
         stack.orientation = .vertical
-        stack.spacing = 12
+        stack.spacing = 10
         stack.alignment = .width
         stack.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stack
 
-        let intro = NSTextField(labelWithString:
-            "Plan reopen timers for each session slot. Duration timers start when you save a session to that slot; clock schedules can repeat on selected weekdays.")
-        intro.font = NSFont.systemFont(ofSize: 11)
-        intro.textColor = .secondaryLabelColor
-        intro.maximumNumberOfLines = 0
-        intro.lineBreakMode = .byWordWrapping
-        intro.translatesAutoresizingMaskIntoConstraints = false
+        // Pin document view width to the clip view so rows align in one column.
+        let clip = scrollView.contentView
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: clip.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: clip.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: clip.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: clip.bottomAnchor),
+            stack.widthAnchor.constraint(equalTo: clip.widthAnchor)
+        ])
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+
+        let buttonRow = NSStackView()
+        buttonRow.orientation = .horizontal
+        buttonRow.alignment = .centerY
+        buttonRow.spacing = 12
+        buttonRow.translatesAutoresizingMaskIntoConstraints = false
+
+        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked))
+        cancelButton.bezelStyle = .rounded
+        cancelButton.keyEquivalent = "\u{1b}"
+
+        let saveButton = NSButton(title: "Save", target: self, action: #selector(saveClicked))
+        saveButton.bezelStyle = .rounded
+        saveButton.keyEquivalent = "\r"
+
+        let rowSpacer = NSView()
+        rowSpacer.translatesAutoresizingMaskIntoConstraints = false
+        rowSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        buttonRow.addArrangedSubview(rowSpacer)
+        buttonRow.addArrangedSubview(cancelButton)
+        buttonRow.addArrangedSubview(saveButton)
 
         root.addSubview(intro)
         root.addSubview(scrollView)
+        root.addSubview(separator)
+        root.addSubview(buttonRow)
 
         NSLayoutConstraint.activate([
             intro.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
@@ -56,7 +102,17 @@ final class SessionTimePlannerController: NSViewController {
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
             scrollView.topAnchor.constraint(equalTo: intro.bottomAnchor, constant: 12),
-            scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -16)
+
+            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
+            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+            separator.topAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: 8),
+
+            buttonRow.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
+            buttonRow.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+            buttonRow.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 12),
+            buttonRow.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -16),
+
+            root.widthAnchor.constraint(equalToConstant: contentWidth)
         ])
 
         buildRows()
@@ -67,7 +123,10 @@ final class SessionTimePlannerController: NSViewController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refreshAllRows()
+            guard let self else { return }
+            // External edits (e.g. popover) — sync draft to disk state.
+            self.draftSlots = SessionSlotStore.allSlots()
+            self.refreshAllRows()
         }
     }
 
@@ -79,8 +138,31 @@ final class SessionTimePlannerController: NSViewController {
 
     override func viewWillAppear() {
         super.viewWillAppear()
+        draftSlots = SessionSlotStore.allSlots()
         refreshAllRows()
+        view.window?.delegate = self
     }
+
+    // MARK: - NSWindowDelegate
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        cancelClicked()
+        return false
+    }
+
+    // MARK: - Actions
+
+    @objc private func saveClicked() {
+        SessionTimerEditing.commitPlannerDraft(draftSlots)
+        view.window?.orderOut(nil)
+    }
+
+    @objc private func cancelClicked() {
+        draftSlots = SessionSlotStore.allSlots()
+        view.window?.orderOut(nil)
+    }
+
+    // MARK: - Rows
 
     private func buildRows() {
         rowPopups = []
@@ -89,7 +171,7 @@ final class SessionTimePlannerController: NSViewController {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         for i in 0..<SessionSlotStore.slotCount {
-            let slot = SessionSlotStore.slot(at: i)
+            let slot = draftSlots[i]
             let titleStr: String
             if slot.hasSession {
                 titleStr = "Slot \(i + 1) — \(slot.sessionName)"
@@ -98,13 +180,14 @@ final class SessionTimePlannerController: NSViewController {
             }
             let title = NSTextField(labelWithString: titleStr)
             title.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+            title.translatesAutoresizingMaskIntoConstraints = false
             rowTitleLabels.append(title)
 
-            let detail = NSTextField(labelWithString: SessionTimerEditing.summary(forSlotIndex: i))
+            let detail = NSTextField(wrappingLabelWithString: SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i))
             detail.font = NSFont.systemFont(ofSize: 11)
             detail.textColor = .secondaryLabelColor
-            detail.maximumNumberOfLines = 0
-            detail.lineBreakMode = .byWordWrapping
+            detail.preferredMaxLayoutWidth = contentWidth - 40 - 32
+            detail.translatesAutoresizingMaskIntoConstraints = false
             rowDetailLabels.append(detail)
 
             let popUp = NSPopUpButton(frame: .zero, pullsDown: false)
@@ -115,17 +198,29 @@ final class SessionTimePlannerController: NSViewController {
             rebuildMenu(for: popUp, slotIndex: i)
             rowPopups.append(popUp)
 
-            let row = NSStackView(views: [title, detail, popUp])
-            row.orientation = .vertical
-            row.spacing = 6
-            row.alignment = .leading
-            row.edgeInsets = NSEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
-            row.wantsLayer = true
-            row.layer?.cornerRadius = 8
-            row.layer?.borderWidth = 1
-            row.layer?.borderColor = NSColor.separatorColor.cgColor
+            let inner = NSStackView(views: [title, detail, popUp])
+            inner.orientation = .vertical
+            inner.spacing = 8
+            inner.alignment = .width
+            inner.translatesAutoresizingMaskIntoConstraints = false
+            inner.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14)
 
-            stack.addArrangedSubview(row)
+            let card = NSView()
+            card.translatesAutoresizingMaskIntoConstraints = false
+            card.wantsLayer = true
+            card.layer?.cornerRadius = 8
+            card.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+            card.layer?.borderWidth = 1
+            card.layer?.borderColor = NSColor.separatorColor.cgColor
+            card.addSubview(inner)
+            NSLayoutConstraint.activate([
+                inner.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+                inner.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+                inner.topAnchor.constraint(equalTo: card.topAnchor),
+                inner.bottomAnchor.constraint(equalTo: card.bottomAnchor)
+            ])
+
+            stack.addArrangedSubview(card)
         }
     }
 
@@ -141,7 +236,7 @@ final class SessionTimePlannerController: NSViewController {
     private func rebuildMenu(for popUp: NSPopUpButton, slotIndex: Int) {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        let slot = SessionSlotStore.slot(at: slotIndex)
+        let slot = draftSlots[slotIndex]
 
         func add(_ title: String, tag: Int) {
             let it = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -174,13 +269,13 @@ final class SessionTimePlannerController: NSViewController {
               rowDetailLabels.count == SessionSlotStore.slotCount,
               rowTitleLabels.count == SessionSlotStore.slotCount else { return }
         for i in 0..<SessionSlotStore.slotCount {
-            let slot = SessionSlotStore.slot(at: i)
+            let slot = draftSlots[i]
             if slot.hasSession {
                 rowTitleLabels[i].stringValue = "Slot \(i + 1) — \(slot.sessionName)"
             } else {
                 rowTitleLabels[i].stringValue = "Slot \(i + 1) — empty"
             }
-            rowDetailLabels[i].stringValue = SessionTimerEditing.summary(forSlotIndex: i)
+            rowDetailLabels[i].stringValue = SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i)
             rebuildMenu(for: rowPopups[i], slotIndex: i)
         }
     }
@@ -193,23 +288,35 @@ final class SessionTimePlannerController: NSViewController {
 
         switch tag {
         case PlannerMenuTag.off.rawValue:
-            SessionTimerEditing.applyOff(slotIndex: slotIndex)
+            var s = draftSlots[slotIndex]
+            s.reopenMode = .off
+            draftSlots[slotIndex] = s
             refreshRowDetail(slotIndex: slotIndex)
         case PlannerMenuTag.m15.rawValue:
-            SessionTimerEditing.applyDuration(slotIndex: slotIndex, minutes: 15)
+            var s = draftSlots[slotIndex]
+            s.reopenMode = .duration
+            s.reopenDurationMinutes = 15
+            draftSlots[slotIndex] = s
             refreshRowDetail(slotIndex: slotIndex)
         case PlannerMenuTag.m30.rawValue:
-            SessionTimerEditing.applyDuration(slotIndex: slotIndex, minutes: 30)
+            var s = draftSlots[slotIndex]
+            s.reopenMode = .duration
+            s.reopenDurationMinutes = 30
+            draftSlots[slotIndex] = s
             refreshRowDetail(slotIndex: slotIndex)
         case PlannerMenuTag.h1.rawValue:
-            SessionTimerEditing.applyDuration(slotIndex: slotIndex, minutes: 60)
+            var s = draftSlots[slotIndex]
+            s.reopenMode = .duration
+            s.reopenDurationMinutes = 60
+            draftSlots[slotIndex] = s
             refreshRowDetail(slotIndex: slotIndex)
         case PlannerMenuTag.h5.rawValue:
-            SessionTimerEditing.applyDuration(slotIndex: slotIndex, minutes: 300)
+            var s = draftSlots[slotIndex]
+            s.reopenMode = .duration
+            s.reopenDurationMinutes = 300
+            draftSlots[slotIndex] = s
             refreshRowDetail(slotIndex: slotIndex)
         case PlannerMenuTag.clock.rawValue:
-            // Popup may briefly show "Clock time…" before cancel/OK; snap back
-            // to the on-disk mode until the sheet confirms.
             presentClockEditor(slotIndex: slotIndex)
             rebuildMenu(for: sender, slotIndex: slotIndex)
         default:
@@ -219,14 +326,15 @@ final class SessionTimePlannerController: NSViewController {
 
     private func refreshRowDetail(slotIndex: Int) {
         guard slotIndex < rowDetailLabels.count else { return }
-        rowDetailLabels[slotIndex].stringValue = SessionTimerEditing.summary(forSlotIndex: slotIndex)
+        let slot = draftSlots[slotIndex]
+        rowDetailLabels[slotIndex].stringValue = SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: slotIndex)
     }
 
     private func presentClockEditor(slotIndex: Int) {
         if let w = clockSheetWindow, w.isVisible {
             w.close()
         }
-        let slot = SessionSlotStore.slot(at: slotIndex)
+        let slot = draftSlots[slotIndex]
         let titleSuffix: String
         if slot.hasSession {
             titleSuffix = "Slot \(slotIndex + 1) — \(slot.sessionName)"
@@ -239,13 +347,18 @@ final class SessionTimePlannerController: NSViewController {
             initialWeekdays: Set(slot.reopenWeekdays)
         )
         sheet.onConfirm = { [weak self] hour, minute, weekdays in
-            SessionTimerEditing.applyClockTime(
-                slotIndex: slotIndex,
-                hour: hour,
-                minute: minute,
-                weekdays: weekdays
-            )
-            self?.clockSheetWindow = nil
+            guard let self else { return }
+            var s = self.draftSlots[slotIndex]
+            s.reopenMode = .clockTime
+            s.reopenClockHour = max(0, min(23, hour))
+            s.reopenClockMinute = max(0, min(59, minute))
+            s.reopenWeekdays = weekdays.sorted()
+            self.draftSlots[slotIndex] = s
+            self.refreshRowDetail(slotIndex: slotIndex)
+            if slotIndex < self.rowPopups.count {
+                self.rebuildMenu(for: self.rowPopups[slotIndex], slotIndex: slotIndex)
+            }
+            self.clockSheetWindow = nil
         }
         sheet.onCancel = { [weak self] in
             self?.refreshAllRows()

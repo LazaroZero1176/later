@@ -18,6 +18,16 @@ extension Notification.Name {
 
 enum SessionTimerEditing {
 
+    /// True when persisted slot matches `draft` on all reopen fields (live
+    /// `ReopenTimerManager` countdowns only make sense in that case).
+    static func reopenFieldsMatch(_ draft: SessionSlotStore.Slot, persisted: SessionSlotStore.Slot) -> Bool {
+        draft.reopenMode == persisted.reopenMode
+            && draft.reopenDurationMinutes == persisted.reopenDurationMinutes
+            && draft.reopenClockHour == persisted.reopenClockHour
+            && draft.reopenClockMinute == persisted.reopenClockMinute
+            && Set(draft.reopenWeekdays) == Set(persisted.reopenWeekdays)
+    }
+
     /// Human-readable weekday list — "Mon, Tue" or "Daily" when all seven.
     static func weekdayListString(_ weekdays: Set<Int>) -> String {
         if weekdays.count == 7 { return "Daily" }
@@ -69,6 +79,85 @@ enum SessionTimerEditing {
             }
             return "Clock \(weekdayListString(weekdays)) · \(hh):\(mm) (arms when you save a session)"
         }
+    }
+
+    /// Status line for the Time planner while editing **draft** slots (may
+    /// differ from disk until the user clicks Save).
+    static func summaryForPlannerDraft(slot: SessionSlotStore.Slot, slotIndex: Int) -> String {
+        let persisted = SessionSlotStore.slot(at: slotIndex)
+        let reopenSynced = reopenFieldsMatch(slot, persisted: persisted)
+        let mgr = ReopenTimerManager.shared
+
+        switch slot.reopenMode {
+        case .off:
+            return "Reopen: off"
+        case .duration:
+            let minutes = slot.reopenDurationMinutes
+            let label: String
+            switch minutes {
+            case 15: label = "15 minutes after save"
+            case 30: label = "30 minutes after save"
+            case 60: label = "1 hour after save"
+            case 300: label = "5 hours after save"
+            default: label = "\(minutes) minutes after save"
+            }
+            if reopenSynced, mgr.fireDate(for: slotIndex) != nil, let r = mgr.remainingString(for: slotIndex) {
+                return "\(label) — \(r)"
+            }
+            if !reopenSynced {
+                return "\(label) — click Save to apply"
+            }
+            return label
+        case .clockTime:
+            let hh = String(format: "%02d", max(0, min(23, slot.reopenClockHour)))
+            let mm = String(format: "%02d", max(0, min(59, slot.reopenClockMinute)))
+            let weekdays = Set(slot.reopenWeekdays)
+            if reopenSynced, let fire = mgr.fireDate(for: slotIndex) {
+                let df = DateFormatter()
+                df.timeStyle = .short
+                df.dateStyle = .none
+                let when = df.string(from: fire)
+                if weekdays.isEmpty {
+                    return "Clock \(hh):\(mm) — next \(when)"
+                }
+                return "Clock \(weekdayListString(weekdays)) · \(hh):\(mm) — next \(when)"
+            }
+            if weekdays.isEmpty {
+                if reopenSynced {
+                    return "Clock \(hh):\(mm) (arms when you save a session)"
+                }
+                return "Clock \(hh):\(mm) — click Save to apply"
+            }
+            if reopenSynced {
+                return "Clock \(weekdayListString(weekdays)) · \(hh):\(mm) (arms when you save a session)"
+            }
+            return "Clock \(weekdayListString(weekdays)) · \(hh):\(mm) — click Save to apply"
+        }
+    }
+
+    /// Persists all six draft slots and reconciles `ReopenTimerManager` (same
+    /// semantics as applying each change immediately in the popover).
+    static func commitPlannerDraft(_ slots: [SessionSlotStore.Slot]) {
+        guard slots.count == SessionSlotStore.slotCount else { return }
+        for i in 0..<SessionSlotStore.slotCount {
+            SessionSlotStore.setSlot(at: i, slots[i])
+        }
+        for i in 0..<SessionSlotStore.slotCount {
+            let slot = slots[i]
+            switch slot.reopenMode {
+            case .off:
+                ReopenTimerManager.shared.cancel(slotIndex: i)
+            case .duration:
+                ReopenTimerManager.shared.cancel(slotIndex: i)
+            case .clockTime:
+                if slot.hasSession {
+                    ReopenTimerManager.shared.schedule(slotIndex: i, policy: slot.activeReopenPolicy)
+                } else {
+                    ReopenTimerManager.shared.cancel(slotIndex: i)
+                }
+            }
+        }
+        postTimersChangedNotification()
     }
 
     static func postTimersChangedNotification() {
