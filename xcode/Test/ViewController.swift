@@ -8,7 +8,7 @@
 import Cocoa
 import CoreGraphics
 import LaunchAtLogin
-import HotKey
+import KeyboardShortcuts
 @preconcurrency import ScreenCaptureKit
 
 /// Borderless, layer-drawn button used for the Session slot grid.
@@ -82,7 +82,22 @@ class ViewController: NSViewController {
     @IBOutlet weak var timeWrapperHeight: NSLayoutConstraint!
     @IBOutlet weak var closeApps: NSButton!
 
-    var checkKey = NSMenuItem(title: "Disable all shortcuts", action: #selector(switchKey), keyEquivalent: "")
+    // v2.5.0 replaces the legacy "Disable all shortcuts" single toggle with
+    // two entries: a "Configure shortcuts…" item that opens the recorder
+    // sheet (ShortcutSettingsController) and a master on/off toggle that
+    // enables or disables every recorded shortcut at once. The `switchKey`
+    // UserDefaults key keeps its historical polarity (`true` = disabled) so
+    // existing installs don't lose their choice across the upgrade.
+    private let menuItemConfigureShortcuts = NSMenuItem(
+        title: "Configure shortcuts…",
+        action: #selector(openShortcutSettingsFromMenu(_:)),
+        keyEquivalent: ""
+    )
+    private let menuItemEnableShortcuts = NSMenuItem(
+        title: "Enable global shortcuts",
+        action: #selector(toggleShortcutsEnabled(_:)),
+        keyEquivalent: ""
+    )
 
     private let menuItemShowDock = NSMenuItem(
         title: "Show Dock icon",
@@ -131,26 +146,6 @@ class ViewController: NSViewController {
 
     let defaults = UserDefaults.standard
 
-    // MARK: - Hotkeys
-
-    private var closeKey: HotKey? {
-        didSet {
-            closeKey?.keyDownHandler = { [weak self] in
-                guard let self else { return }
-                Task { @MainActor in self.saveSessionGlobal() }
-            }
-        }
-    }
-
-    private var restoreKey: HotKey? {
-        didSet {
-            restoreKey?.keyDownHandler = { [weak self] in
-                guard let self else { return }
-                Task { @MainActor in self.restoreSessionGlobal() }
-            }
-        }
-    }
-
     var observers = [NSKeyValueObservation]()
 
     // MARK: - Lifecycle
@@ -163,6 +158,7 @@ class ViewController: NSViewController {
         // which expects up-to-date display names and per-slot modes.
         SessionSlotStore.migrateIfNeeded()
         ExcludeSetupStore.migrateIfNeeded()
+        migrateShortcutsV2IfNeeded()
 
         checkbox.state = LaunchAtLogin.isEnabled ? .on : .off
         closeApps.state = defaults.bool(forKey: "closeApps") ? .on : .off
@@ -170,15 +166,10 @@ class ViewController: NSViewController {
         keepWindowsOpen.state = defaults.bool(forKey: "keepWindowsOpen") ? .on : .off
         waitCheckbox.state = defaults.bool(forKey: "waitCheckbox") ? .on : .off
 
-        if defaults.bool(forKey: "switchKey") {
-            checkKey.state = .on
-            closeKey = nil
-            restoreKey = nil
-        } else {
-            checkKey.state = .off
-            closeKey = HotKey(key: .l, modifiers: [.command, .shift])
-            restoreKey = HotKey(key: .r, modifiers: [.command, .shift])
-        }
+        // Reflect the master on/off state in the gear menu checkmark.
+        // `switchKey == true` means shortcuts are disabled, so the
+        // "Enable global shortcuts" item should appear unchecked.
+        menuItemEnableShortcuts.state = defaults.bool(forKey: "switchKey") ? .off : .on
 
         buildSessionSlotSectionIfNeeded()
         buildExcludeSetupRowIfNeeded()
@@ -386,27 +377,49 @@ class ViewController: NSViewController {
         // Use Sparkle to check for updates, not relevant in this version.
     }
 
-    @objc func switchKey() {
-        if checkKey.state == .on {
-            checkKey.state = .off
-            defaults.set(false, forKey: "switchKey")
-            closeKey = HotKey(key: .l, modifiers: [.command, .shift])
-            restoreKey = HotKey(key: .r, modifiers: [.command, .shift])
-        } else {
-            checkKey.state = .on
-            defaults.set(true, forKey: "switchKey")
-            restoreKey = nil
-            closeKey = nil
-        }
+    /// Open the modeless shortcut settings window hosted by `AppDelegate`.
+    /// The gear menu's "Configure shortcuts…" item routes here.
+    @objc func openShortcutSettingsFromMenu(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.openShortcutSettings(sender)
+    }
+
+    /// Toggle the master "Enable global shortcuts" flag and ask
+    /// `AppDelegate` to enable or disable every named shortcut in bulk.
+    /// Keeps writing to the legacy `switchKey` key (polarity: `true` =
+    /// disabled) so an upgrade round-trip is lossless.
+    @objc func toggleShortcutsEnabled(_ sender: Any?) {
+        let wasEnabled = menuItemEnableShortcuts.state == .on
+        let enabledNow = !wasEnabled
+        menuItemEnableShortcuts.state = enabledNow ? .on : .off
+        defaults.set(!enabledNow, forKey: "switchKey")
+        (NSApp.delegate as? AppDelegate)?.applyShortcutMasterToggle()
+    }
+
+    /// One-time migration for the v2.5.0 shortcuts rework.
+    ///
+    /// Historically `switchKey == true` meant "all shortcuts disabled" and
+    /// the keys were hardcoded `⌘⇧L` / `⌘⇧R`. With `KeyboardShortcuts`
+    /// taking over, defaults are seeded once by the package itself, but the
+    /// legacy value of `switchKey` should still drive the enable/disable
+    /// state — so we only need to *mark* the migration as done, no value
+    /// flip required. The explicit flag lets us extend this later without
+    /// rerunning against users who already upgraded.
+    private func migrateShortcutsV2IfNeeded() {
+        let key = "shortcutsV2Migrated"
+        guard defaults.bool(forKey: key) == false else { return }
+        defaults.set(true, forKey: key)
     }
 
     func setUpMenu() {
         menuItemShowDock.target = self
         menuItemShowMenuBar.target = self
         menuItemLiquidGlass.target = self
+        menuItemConfigureShortcuts.target = self
+        menuItemEnableShortcuts.target = self
 
         self.settingsMenu.addItem(NSMenuItem(title: "Visit website", action: #selector(openURL), keyEquivalent: ""))
-        self.settingsMenu.addItem(checkKey)
+        self.settingsMenu.addItem(menuItemConfigureShortcuts)
+        self.settingsMenu.addItem(menuItemEnableShortcuts)
         self.settingsMenu.addItem(NSMenuItem.separator())
         self.settingsMenu.addItem(menuItemShowDock)
         self.settingsMenu.addItem(menuItemShowMenuBar)

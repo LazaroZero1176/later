@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> ⌨️ **Configurable global shortcuts** — rebind Save / Restore and assign a one-key jump to each of the six slots from the gear menu's *Configure shortcuts…* sheet<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.4.3.dmg`](./Later-2.4.3.dmg) from this repo.
+1. Download the latest [`Later-2.5.0.dmg`](./Later-2.5.0.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -70,11 +70,18 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 
 1. Clone this repo.
 2. Open `xcode/Later.xcodeproj` in Xcode 15 or later.
-3. Xcode will resolve the Swift Package Manager dependencies automatically (`HotKey` `0.2.0`, `LaunchAtLogin-Modern` `1.1.0`).
+3. Xcode will resolve the Swift Package Manager dependencies automatically (`KeyboardShortcuts` `1.17.0`, `HotKey` `0.2.0` (legacy, kept for project compatibility), `LaunchAtLogin-Modern` `1.1.0`).
 4. Build & run. For a distributable `.app`, use `Product → Archive`.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.5.0** (2026-04-18, this fork)
+- **Configurable global shortcuts.** The gear menu's old *Disable all shortcuts* toggle has been retired in favour of two entries: **Configure shortcuts…**, which opens a dedicated Shortcuts window, and **Enable global shortcuts**, a master on/off that now acts as the checkmark master switch instead of the only control. The settings window lets you rebind or clear each shortcut with the standard macOS recorder — click a field and press the combo (or use the X to clear).
+- **Eight named shortcuts in total**: `Save active session` (default `⌘⇧L`), `Restore active session` (default `⌘⇧R`), and six **Restore Slot 1…6** shortcuts with no defaults. Assigning e.g. `⌃F1` to slot 1 means pressing `⌃F1` from anywhere sets slot 1 as the active slot and restores it immediately — no popover, no extra click, same semantics as the right-click quickbar. The slot names in the sheet reflect the actual session name so you know which slot you're rebinding.
+- Recordings are persisted through the [`KeyboardShortcuts`](https://github.com/sindresorhus/KeyboardShortcuts) package (pinned `1.17.0`) under standard `UserDefaults` keys (`KeyboardShortcuts_<name>`). Disabling global shortcuts from the gear menu keeps the recordings — it only suppresses the handlers — so re-enabling is lossless.
+- Migration: the legacy `⌘⇧L` / `⌘⇧R` defaults are seeded on first launch of v2.5.0, so anyone upgrading from v2.4.x keeps the familiar key combos without doing anything. The `switchKey` default keeps its historical polarity (`true` = disabled), so the gear menu's master toggle reflects the previous choice across the update.
+- DMG renamed to `Later-2.5.0.dmg`.
 
 **v2.4.3** (2026-04-18, this fork)
 - **Save sessions from the right-click quickbar.** The status-item context menu gained a new **Save current session to…** submenu listing all six slots. Picking a slot sets it active and immediately runs the same Save flow the green "Save windows for later" button triggers — screenshot, record running apps, hide/close everything according to the popover's current exclude/close settings — so the classic "boss is coming, make the desktop presentable" move is now a two-click gesture without ever opening the popover. Existing slot contents are overwritten without a confirmation dialog (the submenu labels show `overwrite <sessionName>` for occupied slots and `empty` for fresh ones to make that explicit).

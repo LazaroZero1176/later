@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.4.3 (Build 12)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.5.0 (Build 13)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -221,6 +221,21 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: Beide Lookups filtern jetzt `!$0.isTerminated`, der Launch-Zweig greift in diesem Fall wieder und startet die App neu. Kein neuer Sleep/Retry nötig — `NSWorkspace.openApplication(at:)` ist gegenüber einer noch nicht ganz beendeten Instanz gutmütig.
 - Datei: `xcode/Test/ViewController.swift`.
 
+### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
+- Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
+- Umsetzung:
+  - Neue SwiftPM-Dependency [`KeyboardShortcuts`](https://github.com/sindresorhus/KeyboardShortcuts) auf `upToNextMajorVersion(1.10.0)` gepinnt (tatsächlich resolved 1.17.0). Die Bibliothek kapselt Global-Key-Handling, Persistenz (`UserDefaults_KeyboardShortcuts_<Name>`) und stellt eine fertige `RecorderCocoa`-Komponente. Keine neue Angriffsfläche gegenüber SEC-05: gespeichert werden ausschließlich Shortcut-Kombinationen, keine Executable-Pfade.
+  - Neue Datei `xcode/Test/Shortcuts.swift` deklariert acht `KeyboardShortcuts.Name`-Einträge: `saveActiveSession` (Default `⌘⇧L`), `restoreActiveSession` (Default `⌘⇧R`) und `restoreSlot1…6` (keine Defaults — bewusst, damit keine ungewollten Kollisionen mit System-Shortcuts oder anderen Apps passieren). Die Defaults matchen die v2.4.x-Hardcodes, damit Upgrades ohne Shortcut-Verlust laufen.
+  - Neue Datei `xcode/Test/ShortcutSettingsController.swift`: programmatischer `NSViewController` (keine Storyboard-Kopplung), baut einen `NSStackView` mit Header-Label und einer Zeile pro Shortcut. Slot-Zeilen lesen `SessionSlotStore.slot(at:)` und zeigen entweder `Restore Slot N (<sessionName>)` oder `Restore Slot N (empty)` — so weiß der User, welchen Slot er gerade zuweist.
+  - `AppDelegate` bekommt drei neue Methoden: `installShortcutListeners()` (wird einmal beim Start aufgerufen, registriert `onKeyDown` für alle acht Namen), `applyShortcutMasterToggle()` (enable/disable-All, respektiert den `switchKey`-Default) und `openShortcutSettings(_:)` (lazy `NSWindow` mit `ShortcutSettingsController`, `isReleasedWhenClosed = false`, vor Anzeige `NSApp.activate(ignoringOtherApps: true)` für den `.accessory`-Fall).
+  - Neuer privater Helper `runOnVC(_:)` in `AppDelegate` ersetzt das duplizierte Kaltstart-Pattern aus `quickRestoreSlot` und `quickSaveSlot`: er erzwingt `_ = vc.view` und führt den Body aus — sodass Shortcut-Handler vor dem ersten Popover-Öffnen sicher auf IBOutlets zugreifen können.
+  - `ViewController`: `HotKey`-Import, `closeKey`/`restoreKey`-Properties und `switchKey()`-Implementation entfernt. Das alte `checkKey`-Menuitem wurde durch zwei neue Einträge ersetzt: `menuItemConfigureShortcuts` (öffnet das Settings-Fenster über `AppDelegate.openShortcutSettings`) und `menuItemEnableShortcuts` (Master-Toggle mit Checkmark). Letzterer schreibt weiter in `UserDefaults[switchKey]` mit invertierter Polarität (`switchKey == true` bedeutet _disabled_), damit Upgrades v2.4.x → v2.5.0 die vorherige Wahl nicht verlieren.
+  - Migration: neuer One-Shot-Flag `shortcutsV2Migrated`. Die v2.5.0-Migration setzt den Flag beim ersten Start auf `true` — kein aktiver Flip der `switchKey`-Polarität nötig, weil die Default-Seeding bereits durch `KeyboardShortcuts` selbst läuft. Der Flag ist ein Platzhalter für künftige Folge-Migrationen an denselben Keys.
+- Dateien: `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/Shortcuts.swift` (neu), `xcode/Test/ShortcutSettingsController.swift` (neu), `xcode/Later.xcodeproj/project.pbxproj`.
+- Scope-Entscheidung: 2 Globals + 6 Slot-Restores = 8 Shortcuts. Save pro Slot wurde bewusst weggelassen — der v2.4.3-Quickbar-Save deckt das Panik-Szenario bereits ab, und doppelt so viele Recorder-Zeilen hätten die Settings-Sheet-Lesbarkeit gekillt.
+- `HotKey 0.2.0` SwiftPM-Entry bleibt zunächst noch als Package-Referenz stehen, damit dieser Commit reviewbar bleibt; der Target-Link ist bereits ersetzt. Ein Follow-up-Commit kann die Dependency später vollständig entfernen.
+- Versions-Entscheidung: Minor-Bump (2.4.3 → 2.5.0). Die Rework am Gear-Menü („Disable all shortcuts" ist weg, zwei neue Einträge) plus neue Dependency rechtfertigen keinen Patch-Bump mehr, aber auch keinen Major-Bump (keine Breaking-Changes an Public-API / `UserDefaults`-Keys).
+
 ### ISSUE-34 · LOW · FEATURE — v2.4.3: Save-Submenu in der Rechtsklick-Quickleiste
 - Kontext: Die v2.4.2-Quickleiste konnte nur Sessions *wiederherstellen*. Das typische „Chef kommt rein, Desktop muss sofort sauber sein"-Szenario erforderte trotzdem das Popover, weil der grüne Save-Button dort lebt. Zwei Klicks zu viel für eine Panik-Geste.
 - Umsetzung:
@@ -308,6 +323,10 @@ Keine neuen SEC-Einträge notwendig. Bestehende Einträge SEC-04/05 gelten fortg
 
 Die Umstellung auf wiederverwendbare Presets (ISSUE-27/28) ändert weder die Persistenz­form noch die Exekutions-Pfade — App-Start läuft weiterhin über `NSWorkspace.openApplication(at:)` mit Bundle-ID-Filter (SEC-05), und die Close-Schleife respektiert unverändert `shouldInclude`, `com.apple.Terminal` und `isSystemApp`. Neu hinzugekommen ist lediglich der Diff-Filter gegen die Ziel-Session (`targetBundleIDs`/`targetNames`), der die Menge beendeter Apps *verkleinert*. Keine neuen SEC-Findings.
 
+### Sicherheits-Review v2.5.0 (konfigurierbare Shortcuts)
+
+Die neue Dependency `KeyboardShortcuts` 1.17.0 speichert Shortcut-Kombinationen ausschließlich als `UserDefaults`-Keys unter dem Prefix `KeyboardShortcuts_` (Modifier-Maske + Keycode, kein String-Eval). Die Handler in `AppDelegate.installShortcutListeners()` rufen ausschließlich bereits bestehende `ViewController`-Methoden (`saveSessionGlobal()`, `restoreSessionGlobal()`) mit einem validierten Slot-Index auf — keine neue Exekutions-Angriffsfläche gegenüber SEC-05. Das neue `shortcutWindow` wird über `NSWindow.contentViewController` erzeugt und ist `isReleasedWhenClosed = false`; keine KVO-/IPC-Flächen. SEC-01 bleibt gefixt (Tag-Pinning mit `upToNextMajorVersion`).
+
 ---
 
 ## Build-Anleitung (saubere Distribution für aktuelles macOS)
@@ -362,6 +381,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-32 | FEATURE (v2.4.1: Zahnrad-Menü-Toggle zum Deaktivieren von Liquid Glass, Live-Update) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-33 | FEATURE (v2.4.2: Rechtsklick-Quickleiste auf dem Menüleisten-Icon, Ein-Klick-Restore über `NSMenu`) | `xcode/Test/AppDelegate.swift` |
 | ISSUE-34 | FEATURE (v2.4.3: Save-Submenu in der Rechtsklick-Quickleiste, Slot-Auswahl + `saveSessionGlobal()`) | `xcode/Test/AppDelegate.swift` |
+| ISSUE-35 | FEATURE (v2.5.0: konfigurierbare globale Shortcuts via `KeyboardShortcuts` 1.17.0, 2 Globals + 6 Slot-Restores, Settings-Sheet im Zahnrad-Menü, `HotKey` aus dem Code entfernt) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/Shortcuts.swift`, `xcode/Test/ShortcutSettingsController.swift`, `xcode/Later.xcodeproj/project.pbxproj` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

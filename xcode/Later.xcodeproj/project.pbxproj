@@ -27,6 +27,9 @@
 		E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234501 /* ExcludeSetupStore.swift */; };
 		E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */; };
 		E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234507 /* SessionSlotStore.swift */; };
+		E4C11A012345678901234602 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234601 /* Shortcuts.swift */; };
+		E4C11A012345678901234604 /* ShortcutSettingsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234603 /* ShortcutSettingsController.swift */; };
+		E4C11A012345678901234606 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = E4C11A012345678901234605 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +39,8 @@
 		E4C11A012345678901234501 /* ExcludeSetupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupStore.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupEditorController.swift; sourceTree = "<group>"; };
 		E4C11A012345678901234507 /* SessionSlotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSlotStore.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234601 /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234603 /* ShortcutSettingsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsController.swift; sourceTree = "<group>"; };
 		EC376246279C641E003144C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Test/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		EC37624B279C641E003144C7 /* Test.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Test.entitlements; sourceTree = "<group>"; };
 		EC376251279C66F4003144C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -60,6 +65,7 @@
 			files = (
 				ECF6532A27A6F9EA001EFA5D /* HotKey in Frameworks */,
 				ECF6532627A5A2E2001EFA5D /* LaunchAtLogin in Frameworks */,
+				E4C11A012345678901234606 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +107,8 @@
 				E4C11A012345678901234501 /* ExcludeSetupStore.swift */,
 				E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */,
 				E4C11A012345678901234507 /* SessionSlotStore.swift */,
+				E4C11A012345678901234601 /* Shortcuts.swift */,
+				E4C11A012345678901234603 /* ShortcutSettingsController.swift */,
 				ECF31AE627BC4DF200994D3C /* ViewController2.xib */,
 				EC376246279C641E003144C7 /* Assets.xcassets */,
 				EC376248279C641E003144C7 /* Main.storyboard */,
@@ -144,6 +152,7 @@
 			packageProductDependencies = (
 				ECF6532527A5A2E2001EFA5D /* LaunchAtLogin */,
 				ECF6532927A6F9EA001EFA5D /* HotKey */,
+				E4C11A012345678901234605 /* KeyboardShortcuts */,
 			);
 			productName = Test;
 			productReference = EC37623F279C641D003144C7 /* Later.app */;
@@ -176,6 +185,7 @@
 			packageReferences = (
 				ECF6532427A5A2E2001EFA5D /* XCRemoteSwiftPackageReference "LaunchAtLogin" */,
 				ECF6532827A6F9EA001EFA5D /* XCRemoteSwiftPackageReference "HotKey" */,
+				E4C11A012345678901234600 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			productRefGroup = EC376240279C641D003144C7 /* Products */;
 			projectDirPath = "";
@@ -218,6 +228,8 @@
 				E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */,
 				E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */,
 				E4C11A012345678901234508 /* SessionSlotStore.swift in Sources */,
+				E4C11A012345678901234602 /* Shortcuts.swift in Sources */,
+				E4C11A012345678901234604 /* ShortcutSettingsController.swift in Sources */,
 				EC376243279C641D003144C7 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -377,8 +389,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.4.3;
-				CURRENT_PROJECT_VERSION = 12;
+				MARKETING_VERSION = 2.5.0;
+				CURRENT_PROJECT_VERSION = 13;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -412,8 +424,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.4.3;
-				CURRENT_PROJECT_VERSION = 12;
+				MARKETING_VERSION = 2.5.0;
+				CURRENT_PROJECT_VERSION = 13;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -461,6 +473,14 @@
 				minimumVersion = 0.2.0;
 			};
 		};
+		E4C11A012345678901234600 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.10.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -473,6 +493,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = ECF6532827A6F9EA001EFA5D /* XCRemoteSwiftPackageReference "HotKey" */;
 			productName = HotKey;
+		};
+		E4C11A012345678901234605 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E4C11A012345678901234600 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

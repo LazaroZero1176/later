@@ -6,6 +6,7 @@
 //
 
 import Cocoa
+import KeyboardShortcuts
 
 
 @main
@@ -24,6 +25,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// When the menu bar item is hidden, we anchor the popover to this tiny
     /// window at the top-center of the main display.
     private var fallbackAnchorWindow: NSWindow?
+
+    /// Lazy window that hosts the `ShortcutSettingsController`. Created once
+    /// on first "Configure shortcuts…" invocation; `isReleasedWhenClosed =
+    /// false` so we can reopen it without re-instantiating the view.
+    private var shortcutWindow: NSWindow?
 
     func runApp() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -119,6 +125,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // menubar on multi-display setups instead of the system extras bar.
         NSApp.setActivationPolicy(.accessory)
         runApp()
+
+        // Wire global shortcuts (v2.5.0). Migration of the legacy `switchKey`
+        // polarity lives in `ViewController.migrateShortcutsV2IfNeeded()` and
+        // must run before we decide whether to enable or disable here, so we
+        // force the view to load first. Touching `.view` is idempotent.
+        if let vc = popoverView.contentViewController as? ViewController {
+            _ = vc.view
+        }
+        installShortcutListeners()
+        applyShortcutMasterToggle()
 
         // Apply Dock + menu bar visibility (reads showDockIcon / showMenuBarIcon).
         DispatchQueue.main.async { [weak self] in
@@ -337,6 +353,76 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             _ = vc.view
             vc.saveSessionGlobal()
         }
+    }
+
+    // MARK: - Global shortcuts (v2.5.0)
+
+    /// Run `body` on the popover's `ViewController`, loading its view first
+    /// so IBOutlets are guaranteed to be wired. Safe to call from any
+    /// menubar / shortcut entry point, including a cold launch where the
+    /// popover has never been shown.
+    private func runOnVC(_ body: (ViewController) -> Void) {
+        guard let vc = popoverView.contentViewController as? ViewController else { return }
+        _ = vc.view
+        body(vc)
+    }
+
+    /// Wire the eight named shortcuts (`saveActiveSession`,
+    /// `restoreActiveSession`, `restoreSlot1…6`) to their handlers. Called
+    /// once, at startup. The handlers intentionally do not open the popover
+    /// — same philosophy as the right-click quickbar: shortcuts are a
+    /// zero-friction action, not a UI trigger.
+    func installShortcutListeners() {
+        KeyboardShortcuts.onKeyDown(for: .saveActiveSession) { [weak self] in
+            self?.runOnVC { $0.saveSessionGlobal() }
+        }
+        KeyboardShortcuts.onKeyDown(for: .restoreActiveSession) { [weak self] in
+            self?.runOnVC { $0.restoreSessionGlobal() }
+        }
+        for (idx, name) in KeyboardShortcuts.Name.allSlotRestore.enumerated() {
+            KeyboardShortcuts.onKeyDown(for: name) { [weak self] in
+                guard idx >= 0 && idx < SessionSlotStore.slotCount else { return }
+                SessionSlotStore.setActiveIndex(idx)
+                self?.runOnVC { $0.restoreSessionGlobal() }
+            }
+        }
+    }
+
+    /// Enable or disable every app shortcut at once, honoring the
+    /// `switchKey` default. Called at startup (after
+    /// `installShortcutListeners()`) and whenever the user flips the
+    /// "Enable global shortcuts" gear-menu entry. The recordings stay
+    /// persisted either way — disabling only suppresses the handlers.
+    ///
+    /// Note: `switchKey` keeps its legacy polarity (`true` = disabled) to
+    /// preserve the v2.4.x `UserDefaults` value during upgrades. The new
+    /// gear-menu label ("Enable global shortcuts") flips the sign visually
+    /// via a `.on` state when the default is `false`.
+    func applyShortcutMasterToggle() {
+        if defaults.bool(forKey: "switchKey") {
+            KeyboardShortcuts.disable(KeyboardShortcuts.Name.allAppShortcuts)
+        } else {
+            KeyboardShortcuts.enable(KeyboardShortcuts.Name.allAppShortcuts)
+        }
+    }
+
+    /// Present the modeless "Shortcuts" settings window. Invoked from the
+    /// gear menu entry that replaces the legacy "Disable all shortcuts"
+    /// toggle. The window is lazy-created on first call and reused after.
+    @objc func openShortcutSettings(_ sender: Any?) {
+        if shortcutWindow == nil {
+            let vc = ShortcutSettingsController()
+            let window = NSWindow(contentViewController: vc)
+            window.styleMask = [.titled, .closable]
+            window.title = "Shortcuts"
+            window.isReleasedWhenClosed = false
+            window.center()
+            shortcutWindow = window
+        }
+        // Bring the app to the foreground so the window actually focuses —
+        // by default we run as .accessory when the Dock icon is hidden.
+        NSApp.activate(ignoringOtherApps: true)
+        shortcutWindow?.makeKeyAndOrderFront(sender)
     }
 
     /// Apply or clear the legacy dark popover overrides based on the user's
