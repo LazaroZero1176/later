@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.7.1.dmg`](./Later-2.7.1.dmg) from this repo.
+1. Download the latest [`Later-2.7.2.dmg`](./Later-2.7.2.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,9 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.7.2** (2026-04-18, this fork)
+- **Time planner layout fix.** `NSScrollView` has no intrinsic height, so the window could shrink to a useless strip with only the intro line and buttons visible. The scroll area now has a **minimum height** (440 pt), the root view a **minimum total height** (600 pt), `preferredContentSize` is set, and the host window gets **`contentMinSize`** plus an explicit **content size** on first show (`AppDelegate` + `viewDidAppear`). The intro label uses Auto Layout (`translatesAutoresizingMaskIntoConstraints`) so the help text wraps instead of clipping.
 
 **v2.7.1** (2026-04-18, this fork)
 - **Time planner window.** **Save** and **Cancel** (and the red close button) now behave like other settings windows: timer edits are held in a draft until **Save**; **Cancel** discards. The scroll view pins the slot list to a single full-width column so cards align cleanly; slot rows use a simple card-style panel.

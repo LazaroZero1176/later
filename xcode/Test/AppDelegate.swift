@@ -454,7 +454,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         win.title = "Time planner"
         win.styleMask = [.titled, .closable, .miniaturizable]
         win.isReleasedWhenClosed = false
-        win.setContentSize(NSSize(width: 540, height: 560))
+        win.contentMinSize = NSSize(width: 500, height: 600)
+        win.setContentSize(NSSize(width: 520, height: 620))
         win.center()
         timePlannerWindow = win
         NSApp.activate(ignoringOtherApps: true)

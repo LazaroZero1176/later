@@ -13,6 +13,10 @@ import Cocoa
 final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
 
     private let contentWidth: CGFloat = 500
+    /// NSScrollView has no intrinsic height; without this, the layout chain
+    /// collapses and the window can shrink to a useless strip (no slot list).
+    private let minScrollAreaHeight: CGFloat = 440
+    private let minWindowContentHeight: CGFloat = 600
 
     private let scrollView = NSScrollView(frame: .zero)
     private let stack = NSStackView()
@@ -39,13 +43,20 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         intro.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         intro.textColor = .secondaryLabelColor
         intro.preferredMaxLayoutWidth = contentWidth - 40
+        intro.translatesAutoresizingMaskIntoConstraints = false
+        intro.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        intro.maximumNumberOfLines = 0
+        intro.lineBreakMode = .byWordWrapping
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.scrollerStyle = .overlay
+        // Let the scroll area absorb vertical space between header and footer.
+        scrollView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        scrollView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         stack.orientation = .vertical
         stack.spacing = 10
@@ -94,6 +105,9 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         root.addSubview(separator)
         root.addSubview(buttonRow)
 
+        let scrollMinH = scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: minScrollAreaHeight)
+        scrollMinH.priority = .required
+
         NSLayoutConstraint.activate([
             intro.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
             intro.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
@@ -102,6 +116,7 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
             scrollView.topAnchor.constraint(equalTo: intro.bottomAnchor, constant: 12),
+            scrollMinH,
 
             separator.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
             separator.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
@@ -112,11 +127,13 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
             buttonRow.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 12),
             buttonRow.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -16),
 
-            root.widthAnchor.constraint(equalToConstant: contentWidth)
+            root.widthAnchor.constraint(equalToConstant: contentWidth),
+            root.heightAnchor.constraint(greaterThanOrEqualToConstant: minWindowContentHeight)
         ])
 
         buildRows()
         self.view = root
+        preferredContentSize = NSSize(width: contentWidth, height: minWindowContentHeight)
 
         timerObserver = NotificationCenter.default.addObserver(
             forName: .laterSessionTimersChanged,
@@ -141,6 +158,22 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         draftSlots = SessionSlotStore.allSlots()
         refreshAllRows()
         view.window?.delegate = self
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        // After the view is in a window, enforce min size (see `applyWindowSizingHints`).
+        applyWindowSizingHints()
+    }
+
+    /// Ensure the host window cannot collapse to a strip; `NSWindow` may size
+    /// from ambiguous content before the first layout pass.
+    private func applyWindowSizingHints() {
+        guard let win = view.window else { return }
+        // `contentMinSize` applies to the window content rect (below the title bar).
+        win.contentMinSize = NSSize(width: 520, height: minWindowContentHeight)
+        // First layout can still leave a collapsed height before constraints solve; force a usable size.
+        win.setContentSize(NSSize(width: 520, height: minWindowContentHeight))
     }
 
     // MARK: - NSWindowDelegate

@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.7.1 (Build 18)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.7.2 (Build 19)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -308,6 +308,12 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Nicht-Ziele (Dokumentation): **Kein** „Session zur Uhrzeit automatisch speichern“; **kein** zweiter Timer-Typ pro Slot — bleibt Roadmap / spätere Major-Erweiterung.
 - Dateien: `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/SessionTimerEditing.swift`, Version 2.7.1 / 18 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`.
 
+### ISSUE-41 · MED · FIX — v2.7.2: Time-Planner-Fenster kollabiert (kein Slot-Liste sichtbar)
+- Symptom: Fenster nur wenige Pixel hoch — nur Einleitungstext + Buttons; die sechs Slot-Zeilen fehlen. Text abgeschnitten.
+- Ursache: `NSScrollView` liefert **keine** sinnvolle intrinsische Höhe; die Constraint-Kette setzte die Scroll-Viewport-Höhe praktisch auf 0, `NSWindow` passte die Content-Größe daran an.
+- Fix: `scrollView.heightAnchor >= 440`, `root.heightAnchor >= 600`, `preferredContentSize`, `contentMinSize` + `setContentSize` in `AppDelegate.openTimePlanner` und erneut in `SessionTimePlannerController.viewDidAppear`; Intro-Label mit `translatesAutoresizingMaskIntoConstraints = false` und Wrapping-Flags.
+- Dateien: `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, Version 2.7.2 / 19 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -479,6 +485,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-38 | FIX (v2.6.2: Clock-Time-Editor als eigenes Fenster statt `presentAsSheet` im Popover — „At specific time…" sichtbar) | `xcode/Test/ViewController.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-39 | FEATURE (v2.7.0: Time-Planner-Fenster für alle Slots, `SessionTimerEditing`, Umbenennung „Time planner…", `PBXFileReference`-Fix für neue Swift-Dateien) | `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/Test/Info.plist`, `xcode/build-dmg.sh` |
 | ISSUE-40 | FIX (v2.7.1: Time-Planner Save/Cancel + Draft-Commit, Scroll-Breiten-Fix, `summaryForPlannerDraft`, `commitPlannerDraft`) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
+| ISSUE-41 | FIX (v2.7.2: Time-Planner Mindesthöhe / `contentMinSize` — Fenster kollabierte ohne sichtbare Slot-Liste) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
