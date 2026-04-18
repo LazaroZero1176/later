@@ -264,7 +264,7 @@ class ViewController: NSViewController {
     // MARK: - Menu actions
 
     @objc func openURL() {
-        guard let url = URL(string: "https://github.com/alyssaxuu/later") else { return }
+        guard let url = URL(string: "https://github.com/LazaroZero1176/later") else { return }
         NSWorkspace.shared.open(url)
     }
 
