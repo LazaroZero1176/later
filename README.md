@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> ⌨️ **Configurable global shortcuts** — rebind Save / Restore and assign a one-key jump to each of the six slots from the gear menu's *Configure shortcuts…* sheet<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ **Per-slot reopen timer** — pause any slot for a fixed duration (15 min / 30 min / 1 h / 5 h) or schedule it to a specific clock time, optionally with a weekday pattern (daily or e.g. Mon/Tue/Thu). Open **Time planner…** from the gear menu or the popover time dropdown to review and edit all six slots in one window. All six slots can be armed in parallel; timers survive an app quit.<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> ⌨️ **Configurable global shortcuts** — rebind Save / Restore and assign a one-key jump to each of the six slots from the gear menu's *Configure shortcuts…* sheet<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ **Per-slot reopen timer** — pause any slot for a fixed duration (15 min / 30 min / 1 h / 5 h) or schedule it to a specific clock time, optionally with a weekday pattern (daily or e.g. Mon/Tue/Thu). **Scheduled save** (same planner) can run **Save windows for later** into that slot at a clock time — e.g. morning capture, evening restore via the reopen row. Open **Time planner…** from the gear menu or the popover time dropdown to review and edit all six slots in one window. All six slots can be armed in parallel; timers survive an app quit.<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.7.2.dmg`](./Later-2.7.2.dmg) from this repo.
+1. Download the latest [`Later-2.7.3.dmg`](./Later-2.7.3.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -76,13 +76,17 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 
 ## Changelog
 
+**v2.7.3** (2026-04-18, this fork)
+- **Scheduled save (clock time) per slot.** In **Time planner…**, each slot has a second row: **Scheduled save** — Off or a clock time with the same weekday pattern options as **Restore (reopen)**. When it fires, Later activates that slot and runs **Save windows for later** (same pipeline as the green button / quickbar save). Use it together with the reopen row for workflows like “save desktop at start of workday, restore at end.” Persistence: `UserDefaults[saveSchedule.fireDates]` and new fields on each slot in `SessionSlotStore`. See [`ISSUES.md`](./ISSUES.md) ISSUE-42.
+- DMG: `Later-2.7.3.dmg`.
+
 **v2.7.2** (2026-04-18, this fork)
 - **Time planner layout fix.** `NSScrollView` has no intrinsic height, so the window could shrink to a useless strip with only the intro line and buttons visible. The scroll area now has a **minimum height** (440 pt), the root view a **minimum total height** (600 pt), `preferredContentSize` is set, and the host window gets **`contentMinSize`** plus an explicit **content size** on first show (`AppDelegate` + `viewDidAppear`). The intro label uses Auto Layout (`translatesAutoresizingMaskIntoConstraints`) so the help text wraps instead of clipping.
 
 **v2.7.1** (2026-04-18, this fork)
 - **Time planner window.** **Save** and **Cancel** (and the red close button) now behave like other settings windows: timer edits are held in a draft until **Save**; **Cancel** discards. The scroll view pins the slot list to a single full-width column so cards align cleanly; slot rows use a simple card-style panel.
 - `SessionTimerEditing.commitPlannerDraft` / `summaryForPlannerDraft` centralise apply-on-save and status text for the planner. See [`ISSUES.md`](./ISSUES.md) ISSUE-40.
-- **Scope note:** Reopen timers are for **restoring** a saved session (after a duration or at a clock time). Later does **not** schedule an automatic *capture/save* of the desktop at a time — use manual Save or external automation if you need that. Multiple independent timers per slot (e.g. one “save at” and one “reopen at”) are not implemented yet.
+- **Scope note:** Reopen timers are for **restoring** a saved session (after a duration or at a clock time). At v2.7.1, Later did **not** yet schedule an automatic *capture/save* at a time — **v2.7.3** adds optional **Scheduled save** in the same Time planner (see changelog above).
 - DMG: `Later-2.7.1.dmg`.
 
 **v2.7.0** (2026-04-18, this fork)

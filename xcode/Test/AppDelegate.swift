@@ -152,6 +152,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         ReopenTimerManager.shared.restoreFromDisk()
 
+        // v2.8.0 — clock-time **Save windows for later** per slot (e.g. start of workday).
+        ScheduledSaveTimerManager.shared.onSaveFire = { [weak self] slotIdx in
+            guard let self else { return }
+            SessionSlotStore.setActiveIndex(slotIdx)
+            self.runOnVC { $0.saveSessionGlobal() }
+        }
+        ScheduledSaveTimerManager.shared.restoreFromDisk()
+
         // Apply Dock + menu bar visibility (reads showDockIcon / showMenuBarIcon).
         DispatchQueue.main.async { [weak self] in
             self?.applyAppearanceSettings()

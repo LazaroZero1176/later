@@ -1042,6 +1042,10 @@ class ViewController: NSViewController {
         merged.reopenClockHour        = previous.reopenClockHour
         merged.reopenClockMinute      = previous.reopenClockMinute
         merged.reopenWeekdays         = previous.reopenWeekdays
+        merged.saveScheduleMode       = previous.saveScheduleMode
+        merged.saveClockHour          = previous.saveClockHour
+        merged.saveClockMinute        = previous.saveClockMinute
+        merged.saveWeekdays           = previous.saveWeekdays
         SessionSlotStore.setSlot(at: activeIdx, merged)
 
         // Delegate timer arming to the manager. Off → no-op, duration →
@@ -1164,6 +1168,10 @@ class ViewController: NSViewController {
         cleared.reopenClockHour       = existing.reopenClockHour
         cleared.reopenClockMinute     = existing.reopenClockMinute
         cleared.reopenWeekdays        = existing.reopenWeekdays
+        cleared.saveScheduleMode      = existing.saveScheduleMode
+        cleared.saveClockHour         = existing.saveClockHour
+        cleared.saveClockMinute       = existing.saveClockMinute
+        cleared.saveWeekdays          = existing.saveWeekdays
         SessionSlotStore.setSlot(at: idx, cleared)
         ReopenTimerManager.shared.cancel(slotIndex: idx)
         applyEmptySlotUIOnly()

@@ -28,6 +28,13 @@ enum SessionTimerEditing {
             && Set(draft.reopenWeekdays) == Set(persisted.reopenWeekdays)
     }
 
+    static func saveScheduleFieldsMatch(_ draft: SessionSlotStore.Slot, persisted: SessionSlotStore.Slot) -> Bool {
+        draft.saveScheduleMode == persisted.saveScheduleMode
+            && draft.saveClockHour == persisted.saveClockHour
+            && draft.saveClockMinute == persisted.saveClockMinute
+            && Set(draft.saveWeekdays) == Set(persisted.saveWeekdays)
+    }
+
     /// Human-readable weekday list — "Mon, Tue" or "Daily" when all seven.
     static func weekdayListString(_ weekdays: Set<Int>) -> String {
         if weekdays.count == 7 { return "Daily" }
@@ -135,6 +142,42 @@ enum SessionTimerEditing {
         }
     }
 
+    /// Second line in Time planner — scheduled **Save** (v2.8.0).
+    static func saveScheduleSummaryForPlannerDraft(slot: SessionSlotStore.Slot, slotIndex: Int) -> String {
+        let persisted = SessionSlotStore.slot(at: slotIndex)
+        let synced = saveScheduleFieldsMatch(slot, persisted: persisted)
+        let mgr = ScheduledSaveTimerManager.shared
+
+        switch slot.saveScheduleMode {
+        case .off:
+            return "Scheduled save: off"
+        case .clockTime:
+            let hh = String(format: "%02d", max(0, min(23, slot.saveClockHour)))
+            let mm = String(format: "%02d", max(0, min(59, slot.saveClockMinute)))
+            let weekdays = Set(slot.saveWeekdays)
+            if synced, let fire = mgr.fireDate(for: slotIndex) {
+                let df = DateFormatter()
+                df.timeStyle = .short
+                df.dateStyle = .none
+                let when = df.string(from: fire)
+                if weekdays.isEmpty {
+                    return "Scheduled save: \(hh):\(mm) — next \(when)"
+                }
+                return "Scheduled save: \(weekdayListString(weekdays)) · \(hh):\(mm) — next \(when)"
+            }
+            if weekdays.isEmpty {
+                if synced {
+                    return "Scheduled save: \(hh):\(mm) (runs Save for this slot)"
+                }
+                return "Scheduled save: \(hh):\(mm) — click Save to apply"
+            }
+            if synced {
+                return "Scheduled save: \(weekdayListString(weekdays)) · \(hh):\(mm)"
+            }
+            return "Scheduled save: \(weekdayListString(weekdays)) · \(hh):\(mm) — click Save to apply"
+        }
+    }
+
     /// Persists all six draft slots and reconciles `ReopenTimerManager` (same
     /// semantics as applying each change immediately in the popover).
     static func commitPlannerDraft(_ slots: [SessionSlotStore.Slot]) {
@@ -155,6 +198,15 @@ enum SessionTimerEditing {
                 } else {
                     ReopenTimerManager.shared.cancel(slotIndex: i)
                 }
+            }
+        }
+        for i in 0..<SessionSlotStore.slotCount {
+            let slot = slots[i]
+            switch slot.saveScheduleMode {
+            case .off:
+                ScheduledSaveTimerManager.shared.cancel(slotIndex: i)
+            case .clockTime:
+                ScheduledSaveTimerManager.shared.schedule(slotIndex: i, policy: slot.activeSaveSchedulePolicy)
             }
         }
         postTimersChangedNotification()

@@ -20,6 +20,10 @@ enum SessionSlotStore {
     /// additions. Added in v2.6.0.
     enum ReopenMode: String, Codable { case off, duration, clockTime }
 
+    /// v2.8.0 — optional clock-time trigger for **Save windows for later** on
+    /// this slot (independent from reopen / restore).
+    enum SaveScheduleMode: String, Codable { case off, clockTime }
+
     /// One saved session worth of data (mirrors former flat UserDefaults keys).
     ///
     /// v2.6.0 added per-slot reopen-timer fields (`reopenMode`,
@@ -48,6 +52,12 @@ enum SessionSlotStore {
         /// `Set<Int>` for membership checks.
         var reopenWeekdays: [Int] = []
 
+        // v2.8.0 scheduled save (clock time + optional weekdays).
+        var saveScheduleMode: SaveScheduleMode = .off
+        var saveClockHour: Int = 9
+        var saveClockMinute: Int = 0
+        var saveWeekdays: [Int] = []
+
         static let empty = Slot(
             hasSession: false,
             lastState: false,
@@ -74,7 +84,11 @@ enum SessionSlotStore {
             reopenDurationMinutes: Int = 15,
             reopenClockHour: Int = 9,
             reopenClockMinute: Int = 0,
-            reopenWeekdays: [Int] = []
+            reopenWeekdays: [Int] = [],
+            saveScheduleMode: SaveScheduleMode = .off,
+            saveClockHour: Int = 9,
+            saveClockMinute: Int = 0,
+            saveWeekdays: [Int] = []
         ) {
             self.hasSession = hasSession
             self.lastState = lastState
@@ -90,6 +104,10 @@ enum SessionSlotStore {
             self.reopenClockHour = reopenClockHour
             self.reopenClockMinute = reopenClockMinute
             self.reopenWeekdays = reopenWeekdays
+            self.saveScheduleMode = saveScheduleMode
+            self.saveClockHour = saveClockHour
+            self.saveClockMinute = saveClockMinute
+            self.saveWeekdays = saveWeekdays
         }
 
         // Custom Codable with defaults for the v2.6.0 fields so legacy blobs
@@ -99,6 +117,7 @@ enum SessionSlotStore {
             case totalSessions, appsLegacy, appNames, appBundleIDs
             case reopenMode, reopenDurationMinutes
             case reopenClockHour, reopenClockMinute, reopenWeekdays
+            case saveScheduleMode, saveClockHour, saveClockMinute, saveWeekdays
         }
 
         init(from decoder: Decoder) throws {
@@ -117,6 +136,10 @@ enum SessionSlotStore {
             self.reopenClockHour       = try c.decodeIfPresent(Int.self,        forKey: .reopenClockHour) ?? 9
             self.reopenClockMinute     = try c.decodeIfPresent(Int.self,        forKey: .reopenClockMinute) ?? 0
             self.reopenWeekdays        = try c.decodeIfPresent([Int].self,      forKey: .reopenWeekdays) ?? []
+            self.saveScheduleMode      = try c.decodeIfPresent(SaveScheduleMode.self, forKey: .saveScheduleMode) ?? .off
+            self.saveClockHour         = try c.decodeIfPresent(Int.self,        forKey: .saveClockHour) ?? 9
+            self.saveClockMinute       = try c.decodeIfPresent(Int.self,        forKey: .saveClockMinute) ?? 0
+            self.saveWeekdays          = try c.decodeIfPresent([Int].self,      forKey: .saveWeekdays) ?? []
         }
 
         func encode(to encoder: Encoder) throws {
@@ -135,6 +158,10 @@ enum SessionSlotStore {
             try c.encode(reopenClockHour,       forKey: .reopenClockHour)
             try c.encode(reopenClockMinute,     forKey: .reopenClockMinute)
             try c.encode(reopenWeekdays,        forKey: .reopenWeekdays)
+            try c.encode(saveScheduleMode,     forKey: .saveScheduleMode)
+            try c.encode(saveClockHour,        forKey: .saveClockHour)
+            try c.encode(saveClockMinute,      forKey: .saveClockMinute)
+            try c.encode(saveWeekdays,         forKey: .saveWeekdays)
         }
 
         /// Resolved policy for the current timer fields. Used by
@@ -150,6 +177,20 @@ enum SessionSlotStore {
                     hour: reopenClockHour,
                     minute: reopenClockMinute,
                     weekdays: Set(reopenWeekdays)
+                )
+            }
+        }
+
+        /// Clock-time policy for scheduled **Save** (v2.8.0). Independent from reopen.
+        var activeSaveSchedulePolicy: ReopenPolicy {
+            switch saveScheduleMode {
+            case .off:
+                return .off
+            case .clockTime:
+                return .clockTime(
+                    hour: saveClockHour,
+                    minute: saveClockMinute,
+                    weekdays: Set(saveWeekdays)
                 )
             }
         }

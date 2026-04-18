@@ -15,13 +15,15 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
     private let contentWidth: CGFloat = 500
     /// NSScrollView has no intrinsic height; without this, the layout chain
     /// collapses and the window can shrink to a useless strip (no slot list).
-    private let minScrollAreaHeight: CGFloat = 440
-    private let minWindowContentHeight: CGFloat = 600
+    private let minScrollAreaHeight: CGFloat = 520
+    private let minWindowContentHeight: CGFloat = 680
 
     private let scrollView = NSScrollView(frame: .zero)
     private let stack = NSStackView()
     private var rowPopups: [NSPopUpButton] = []
     private var rowDetailLabels: [NSTextField] = []
+    private var rowSaveDetailLabels: [NSTextField] = []
+    private var saveRowPopups: [NSPopUpButton] = []
     private var rowTitleLabels: [NSTextField] = []
 
     /// Draft copy — committed on Save only.
@@ -29,6 +31,7 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
 
     /// Single clock editor at a time (same pattern as `ViewController`).
     private var clockSheetWindow: NSWindow?
+    private var saveClockSheetWindow: NSWindow?
 
     private var timerObserver: NSObjectProtocol?
 
@@ -39,7 +42,7 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         root.translatesAutoresizingMaskIntoConstraints = false
 
         let intro = NSTextField(wrappingLabelWithString:
-            "Plan reopen timers for each session slot. Duration timers start when you save a session to that slot; clock schedules can repeat on selected weekdays. Click Save to apply your changes.")
+            "Per slot: Restore (reopen) runs Restore at the chosen time. Scheduled save runs Save windows for later into this slot at clock time — e.g. morning = capture desktop, evening = restore (set both rows). Click Save below to apply.")
         intro.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         intro.textColor = .secondaryLabelColor
         intro.preferredMaxLayoutWidth = contentWidth - 40
@@ -200,6 +203,8 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
     private func buildRows() {
         rowPopups = []
         rowDetailLabels = []
+        rowSaveDetailLabels = []
+        saveRowPopups = []
         rowTitleLabels = []
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
@@ -216,6 +221,10 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
             title.translatesAutoresizingMaskIntoConstraints = false
             rowTitleLabels.append(title)
 
+            let reopenHeading = NSTextField(labelWithString: "Restore (reopen)")
+            reopenHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+            reopenHeading.textColor = .secondaryLabelColor
+
             let detail = NSTextField(wrappingLabelWithString: SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i))
             detail.font = NSFont.systemFont(ofSize: 11)
             detail.textColor = .secondaryLabelColor
@@ -231,9 +240,30 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
             rebuildMenu(for: popUp, slotIndex: i)
             rowPopups.append(popUp)
 
-            let inner = NSStackView(views: [title, detail, popUp])
+            let saveHeading = NSTextField(labelWithString: "Scheduled save (Save windows for later)")
+            saveHeading.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+            saveHeading.textColor = .secondaryLabelColor
+
+            let saveDetail = NSTextField(wrappingLabelWithString: SessionTimerEditing.saveScheduleSummaryForPlannerDraft(slot: slot, slotIndex: i))
+            saveDetail.font = NSFont.systemFont(ofSize: 11)
+            saveDetail.textColor = .secondaryLabelColor
+            saveDetail.preferredMaxLayoutWidth = contentWidth - 40 - 32
+            saveDetail.translatesAutoresizingMaskIntoConstraints = false
+            rowSaveDetailLabels.append(saveDetail)
+
+            let savePop = NSPopUpButton(frame: .zero, pullsDown: false)
+            savePop.translatesAutoresizingMaskIntoConstraints = false
+            savePop.tag = i
+            savePop.target = self
+            savePop.action = #selector(savePlannerPopupChanged(_:))
+            rebuildSaveMenu(for: savePop, slotIndex: i)
+            saveRowPopups.append(savePop)
+
+            let inner = NSStackView(views: [
+                title, reopenHeading, detail, popUp, saveHeading, saveDetail, savePop
+            ])
             inner.orientation = .vertical
-            inner.spacing = 8
+            inner.spacing = 6
             inner.alignment = .width
             inner.translatesAutoresizingMaskIntoConstraints = false
             inner.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14)
@@ -264,6 +294,11 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         case h1 = 60
         case h5 = 300
         case clock = 7713
+    }
+
+    private enum SavePlannerMenuTag: Int {
+        case off = 1
+        case clock = 7714
     }
 
     private func rebuildMenu(for popUp: NSPopUpButton, slotIndex: Int) {
@@ -297,9 +332,36 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         }
     }
 
+    private func rebuildSaveMenu(for popUp: NSPopUpButton, slotIndex: Int) {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let slot = draftSlots[slotIndex]
+
+        func add(_ title: String, tag: Int) {
+            let it = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            it.tag = tag
+            menu.addItem(it)
+        }
+
+        add("Off", tag: SavePlannerMenuTag.off.rawValue)
+        menu.addItem(NSMenuItem.separator())
+        add("Clock time…", tag: SavePlannerMenuTag.clock.rawValue)
+
+        popUp.menu = menu
+
+        switch slot.saveScheduleMode {
+        case .off:
+            popUp.selectItem(withTag: SavePlannerMenuTag.off.rawValue)
+        case .clockTime:
+            popUp.selectItem(withTag: SavePlannerMenuTag.clock.rawValue)
+        }
+    }
+
     private func refreshAllRows() {
         guard rowPopups.count == SessionSlotStore.slotCount,
               rowDetailLabels.count == SessionSlotStore.slotCount,
+              rowSaveDetailLabels.count == SessionSlotStore.slotCount,
+              saveRowPopups.count == SessionSlotStore.slotCount,
               rowTitleLabels.count == SessionSlotStore.slotCount else { return }
         for i in 0..<SessionSlotStore.slotCount {
             let slot = draftSlots[i]
@@ -309,7 +371,9 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
                 rowTitleLabels[i].stringValue = "Slot \(i + 1) — empty"
             }
             rowDetailLabels[i].stringValue = SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: i)
+            rowSaveDetailLabels[i].stringValue = SessionTimerEditing.saveScheduleSummaryForPlannerDraft(slot: slot, slotIndex: i)
             rebuildMenu(for: rowPopups[i], slotIndex: i)
+            rebuildSaveMenu(for: saveRowPopups[i], slotIndex: i)
         }
     }
 
@@ -357,13 +421,40 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         }
     }
 
+    @objc private func savePlannerPopupChanged(_ sender: NSPopUpButton) {
+        let slotIndex = sender.tag
+        guard slotIndex >= 0 && slotIndex < SessionSlotStore.slotCount,
+              let item = sender.selectedItem else { return }
+        let tag = item.tag
+
+        switch tag {
+        case SavePlannerMenuTag.off.rawValue:
+            var s = draftSlots[slotIndex]
+            s.saveScheduleMode = SessionSlotStore.SaveScheduleMode.off
+            draftSlots[slotIndex] = s
+            refreshRowSaveDetail(slotIndex: slotIndex)
+        case SavePlannerMenuTag.clock.rawValue:
+            presentSaveClockEditor(slotIndex: slotIndex)
+            rebuildSaveMenu(for: sender, slotIndex: slotIndex)
+        default:
+            break
+        }
+    }
+
     private func refreshRowDetail(slotIndex: Int) {
         guard slotIndex < rowDetailLabels.count else { return }
         let slot = draftSlots[slotIndex]
         rowDetailLabels[slotIndex].stringValue = SessionTimerEditing.summaryForPlannerDraft(slot: slot, slotIndex: slotIndex)
     }
 
+    private func refreshRowSaveDetail(slotIndex: Int) {
+        guard slotIndex < rowSaveDetailLabels.count else { return }
+        let slot = draftSlots[slotIndex]
+        rowSaveDetailLabels[slotIndex].stringValue = SessionTimerEditing.saveScheduleSummaryForPlannerDraft(slot: slot, slotIndex: slotIndex)
+    }
+
     private func presentClockEditor(slotIndex: Int) {
+        if let w = saveClockSheetWindow, w.isVisible { w.close() }
         if let w = clockSheetWindow, w.isVisible {
             w.close()
         }
@@ -407,6 +498,53 @@ final class SessionTimePlannerController: NSViewController, NSWindowDelegate {
         win.setContentSize(NSSize(width: 400, height: 300))
         win.center()
         clockSheetWindow = win
+        NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(nil)
+    }
+
+    private func presentSaveClockEditor(slotIndex: Int) {
+        if let w = clockSheetWindow, w.isVisible { w.close() }
+        if let w = saveClockSheetWindow, w.isVisible { w.close() }
+        let slot = draftSlots[slotIndex]
+        let titleSuffix: String
+        if slot.hasSession {
+            titleSuffix = "Slot \(slotIndex + 1) — \(slot.sessionName)"
+        } else {
+            titleSuffix = "Slot \(slotIndex + 1) — empty"
+        }
+        let sheet = ClockTimeSheetController(
+            initialHour: slot.saveClockHour,
+            initialMinute: slot.saveClockMinute,
+            initialWeekdays: Set(slot.saveWeekdays)
+        )
+        sheet.onConfirm = { [weak self] hour, minute, weekdays in
+            guard let self else { return }
+            var s = self.draftSlots[slotIndex]
+            s.saveScheduleMode = SessionSlotStore.SaveScheduleMode.clockTime
+            s.saveClockHour = max(0, min(23, hour))
+            s.saveClockMinute = max(0, min(59, minute))
+            s.saveWeekdays = weekdays.sorted()
+            self.draftSlots[slotIndex] = s
+            self.refreshRowSaveDetail(slotIndex: slotIndex)
+            if slotIndex < self.saveRowPopups.count {
+                self.rebuildSaveMenu(for: self.saveRowPopups[slotIndex], slotIndex: slotIndex)
+            }
+            self.saveClockSheetWindow = nil
+        }
+        sheet.onCancel = { [weak self] in
+            self?.refreshAllRows()
+            self?.saveClockSheetWindow = nil
+        }
+        sheet.onWindowClosed = { [weak self] in
+            self?.saveClockSheetWindow = nil
+        }
+        let win = NSWindow(contentViewController: sheet)
+        win.title = "Save schedule — \(titleSuffix)"
+        win.styleMask = [.titled, .closable]
+        win.isReleasedWhenClosed = false
+        win.setContentSize(NSSize(width: 400, height: 300))
+        win.center()
+        saveClockSheetWindow = win
         NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
     }
