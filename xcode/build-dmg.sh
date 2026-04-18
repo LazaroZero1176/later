@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build Release (universal) and create ../Later-2.0.dmg next to this folder (later/Later-2.0.dmg).
+# Build Release (universal) and create ../Later-2.1.dmg next to this folder (later/Later-2.1.dmg).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 DERIVED="$ROOT/DerivedDataDMG"
-OUT_DMG="$(cd "$ROOT/.." && pwd)/Later-2.0.dmg"
+OUT_DMG="$(cd "$ROOT/.." && pwd)/Later-2.1.dmg"
 
 echo "==> Building Later (Release, universal)…"
 rm -rf "$DERIVED"

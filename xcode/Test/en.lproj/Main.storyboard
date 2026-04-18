@@ -701,7 +701,7 @@
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="c67-bl-sOy">
                                 <rect key="frame" x="67" y="422" width="51" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" lineBreakMode="clipping" title="v2.0" id="CBi-aV-oCf">
+                                <textFieldCell key="cell" lineBreakMode="clipping" title="v2.1" id="CBi-aV-oCf">
                                     <font key="font" size="11" name="Inter-Medium"/>
                                     <color key="textColor" red="0.635276854" green="0.62737250330000005" blue="0.63137388230000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
