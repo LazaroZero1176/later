@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.7.0.dmg`](./Later-2.7.0.dmg) from this repo.
+1. Download the latest [`Later-2.7.1.dmg`](./Later-2.7.1.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,12 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.7.1** (2026-04-18, this fork)
+- **Time planner window.** **Save** and **Cancel** (and the red close button) now behave like other settings windows: timer edits are held in a draft until **Save**; **Cancel** discards. The scroll view pins the slot list to a single full-width column so cards align cleanly; slot rows use a simple card-style panel.
+- `SessionTimerEditing.commitPlannerDraft` / `summaryForPlannerDraft` centralise apply-on-save and status text for the planner. See [`ISSUES.md`](./ISSUES.md) ISSUE-40.
+- **Scope note:** Reopen timers are for **restoring** a saved session (after a duration or at a clock time). Later does **not** schedule an automatic *capture/save* of the desktop at a time — use manual Save or external automation if you need that. Multiple independent timers per slot (e.g. one “save at” and one “reopen at”) are not implemented yet.
+- DMG: `Later-2.7.1.dmg`.
 
 **v2.7.0** (2026-04-18, this fork)
 - **Time planner window.** The reopen-timer choices for all six session slots are available in one scrollable window (**Time planner**), opened from the gear menu or via **Time planner…** in the popover’s time dropdown (the former **At specific time…** entry is renamed accordingly). Each row shows the slot name, a short status summary, and the same Off / duration / clock-time options as the per-slot dropdown, including the clock-time sheet for weekday patterns.
