@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.4.dmg`](./Later-2.4.dmg) from this repo.
+1. Download the latest [`Later-2.4.1.dmg`](./Later-2.4.1.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,10 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.4.1** (2026-04-18, this fork)
+- Follow-up to v2.4: added a **"Use Liquid Glass (Tahoe)" toggle** in the gear menu. Defaults to on when running on macOS 26+, and the menu item is hidden entirely on older macOS. Turning it off restores the exact legacy dark popover look from v2.3 — useful if the glass material is too subtle for your monitor or clashes with your wallpaper. The toggle takes effect immediately, even with the popover open; the user-readable label color in the session-setup row flips too, so nothing becomes unreadable. Persisted in `UserDefaults` under `useLiquidGlass`.
+- DMG renamed to `Later-2.4.1.dmg`.
 
 **v2.4** (2026-04-18, this fork)
 - **Liquid Glass on macOS 26 (Tahoe).** When running on Tahoe or later, the popover now adopts the system Liquid Glass material instead of the fixed dark panel from earlier versions. The session preview box and the options box render with transparent fills so the glass material shows through the whole popover. The session-setup row uses semantic label colors and picks up the adaptive light/dark glass automatically. Older macOS (13.0–15.x) keeps the legacy dark popover look — the change is fully runtime-gated via `#available(macOS 26.0, *)`, no change to the 13.0 deployment target.

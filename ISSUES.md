@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.4 (Build 9)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.4.1 (Build 10)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -221,6 +221,17 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: Beide Lookups filtern jetzt `!$0.isTerminated`, der Launch-Zweig greift in diesem Fall wieder und startet die App neu. Kein neuer Sleep/Retry nötig — `NSWorkspace.openApplication(at:)` ist gegenüber einer noch nicht ganz beendeten Instanz gutmütig.
 - Datei: `xcode/Test/ViewController.swift`.
 
+### ISSUE-32 · LOW · FEATURE — v2.4.1: Liquid-Glass-Opt-out im Zahnrad-Menü
+- Kontext: Mit v2.4 adoptiert das Popover auf macOS 26+ automatisch Liquid Glass. Nutzer, denen die neue Transluzenz zu subtil ist oder die vor hellem Wallpaper schlecht lesbar bleibt, brauchen einen direkten Opt-out.
+- Umsetzung:
+  - Neuer `UserDefaults`-Key `useLiquidGlass` (Default `true`), registriert zusammen mit den anderen Standards in `AppDelegate.applicationDidFinishLaunching`.
+  - Neuer Menüeintrag „Use Liquid Glass (Tahoe)" in `setUpMenu` unterhalb der Dock-/Menüleisten-Toggles. Nur unter `#available(macOS 26.0, *)` eingefügt, damit pre-Tahoe-Builds keinen toten Eintrag zeigen.
+  - `toggleLiquidGlassFromMenu(_:)` flippt den Default, aktualisiert den Menü-State und ruft sowohl `applyLiquidGlassIfAvailable()` + `applyExcludeSetupRowStyle()` (NSBox-Füllungen und Setup-Zeilen-Farben) als auch den neuen `AppDelegate.reapplyPopoverAppearance()` (Popover-Backdrop + `NSAppearance`) live auf — ohne Popover-Schließen.
+  - Aus dem v2.4 ursprünglich inline in `showPopover` erledigten Branch wurde der neue `reapplyPopoverAppearance()`; `showPopover` delegiert jetzt dorthin. Wenn Liquid Glass aktiv ist, werden `popoverView.backgroundColor = nil` und `popoverView.appearance = nil` gesetzt, sodass frühere Overrides bei einem Live-Toggle wieder entfernt werden.
+  - `legacyBoxFillColor` in `ViewController` hält die Storyboard-Farbe (display-P3 ~0.184) als Konstante, damit der Off-Modus byte-identisch zum alten Look aussieht.
+- Dateien: `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`.
+- Versions-Entscheidung: Patch-Bump (2.4 → 2.4.1) — kleiner Folge-Tweak direkt an der v2.4-Neuerung, kein anderes Feature geändert.
+
 ### ISSUE-31 · LOW · FEATURE — v2.4: Liquid-Glass-Opt-in auf macOS 26 (Tahoe)
 - Kontext: Das Binary wird mit Xcode 26.4.1 gegen das macOS 26.4 SDK gelinkt; Tahoe würde das Popover damit automatisch mit dem neuen Liquid-Glass-Material unterlegen. Drei Stellen haben das in v2.3.1 aber noch verhindert:
   1. `AppDelegate.showPopover` setzte `popoverView.backgroundColor = #colorLiteral(...)` und erzwang `popoverView.appearance = NSAppearance(named: .aqua)`, was die Glass-Schicht komplett mit einem opaken hellen Panel überdeckte.
@@ -326,6 +337,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-29 | FIX (v2.3.1: `activate()` ignoriert terminierende Apps, Relaunch klappt wieder) | `xcode/Test/ViewController.swift` |
 | ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-31 | FEATURE (v2.4: Liquid-Glass-Opt-in auf macOS 26, runtime-gated, pre-Tahoe unverändert) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
+| ISSUE-32 | FEATURE (v2.4.1: Zahnrad-Menü-Toggle zum Deaktivieren von Liquid Glass, Live-Update) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

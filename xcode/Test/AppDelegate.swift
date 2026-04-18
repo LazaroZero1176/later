@@ -83,6 +83,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "switchKey": false,
             "showDockIcon": true,
             "showMenuBarIcon": true,
+            // On macOS 26 (Tahoe) and later the popover adopts the system
+            // Liquid Glass material by default. Users who prefer the legacy
+            // dark-tinted popover can disable this from the gear menu
+            // (ViewController owns the toggle). Ignored on pre-Tahoe.
+            "useLiquidGlass": true,
             // Keep these in sync with `ExcludeSetupStore.defaultDisplayNames` and
             // `ExcludeSetupMode.all.rawValue`. `ExcludeSetupStore.migrateIfNeeded()`
             // is the single source of truth for first-launch seeding and
@@ -167,16 +172,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPopover(_ sender: AnyObject?) {
         popoverView.animates = true
-        // On macOS 26 (Tahoe) and later the popover automatically adopts the
-        // new Liquid Glass material. Overriding `backgroundColor` and forcing
-        // `.aqua` would flatten it back to an opaque light panel, so we only
-        // apply the legacy dark-tinted look on pre-Tahoe systems.
-        if #available(macOS 26.0, *) {
-            // Let Liquid Glass handle the backdrop. No overrides.
-        } else {
-            popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
-            popoverView.appearance = NSAppearance(named: .aqua)
-        }
+        reapplyPopoverAppearance()
 
         if let button = statusItem.button,
            statusItem.isVisible,
@@ -195,6 +191,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popoverView.performClose(sender)
         dismissFallbackAnchor()
         eventMonitor?.stop()
+    }
+
+    /// Apply or clear the legacy dark popover overrides based on the user's
+    /// Liquid Glass preference. Called both before first-show and whenever
+    /// the user toggles the gear-menu item while the popover is already open.
+    ///
+    /// On macOS 26+ with Liquid Glass enabled we leave the popover alone so
+    /// the system material can render. In every other case — pre-Tahoe, or
+    /// Tahoe with the opt-out toggled off — we reinstate the dark panel look
+    /// that shipped through v2.3.x.
+    func reapplyPopoverAppearance() {
+        let useGlass: Bool
+        if #available(macOS 26.0, *) {
+            useGlass = defaults.object(forKey: "useLiquidGlass") as? Bool ?? true
+        } else {
+            useGlass = false
+        }
+        if useGlass {
+            // Let the system render Liquid Glass. Clear any previous override.
+            popoverView.backgroundColor = nil
+            popoverView.appearance = nil
+        } else {
+            popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
+            popoverView.appearance = NSAppearance(named: .aqua)
+        }
     }
 
     private func isViewOnAnyScreen(_ view: NSView) -> Bool {

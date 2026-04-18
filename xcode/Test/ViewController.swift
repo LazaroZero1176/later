@@ -94,6 +94,13 @@ class ViewController: NSViewController {
         action: #selector(toggleMenuBarFromMenu(_:)),
         keyEquivalent: ""
     )
+    // Added in v2.4.1 so users on Tahoe can opt out of the Liquid Glass look.
+    // Only inserted into the menu on macOS 26+ (see `setUpMenu`).
+    private let menuItemLiquidGlass = NSMenuItem(
+        title: "Use Liquid Glass (Tahoe)",
+        action: #selector(toggleLiquidGlassFromMenu(_:)),
+        keyEquivalent: ""
+    )
 
 
     var timer = Timer()
@@ -185,16 +192,53 @@ class ViewController: NSViewController {
         applyLiquidGlassIfAvailable()
     }
 
-    /// On macOS 26 (Tahoe) and later, the popover renders with a Liquid Glass
-    /// material. The pre-existing dark-tinted NSBoxes (`box` for the session
-    /// preview, `optionsBox` for the options row) would cover that material
-    /// with opaque fills, so we make them transparent on Tahoe+ and let the
-    /// popover's backdrop show through. Pre-Tahoe systems keep the legacy
-    /// dark look defined in the storyboard.
+    /// On macOS 26 (Tahoe) and later, the popover can render with a Liquid
+    /// Glass material. The pre-existing dark-tinted NSBoxes (`box` for the
+    /// session preview, `optionsBox` for the options row) would cover that
+    /// material with opaque fills, so we make them transparent on Tahoe+ and
+    /// let the popover's backdrop show through — unless the user disabled
+    /// Liquid Glass from the gear menu, in which case we restore the legacy
+    /// dark fill byte-identical to the storyboard default.
+    /// Pre-Tahoe systems always keep the legacy look.
     private func applyLiquidGlassIfAvailable() {
         guard #available(macOS 26.0, *) else { return }
-        box.fillColor = .clear
-        optionsBox.fillColor = .clear
+        if isLiquidGlassEnabled {
+            box.fillColor = .clear
+            optionsBox.fillColor = .clear
+        } else {
+            box.fillColor = Self.legacyBoxFillColor
+            optionsBox.fillColor = Self.legacyBoxFillColor
+        }
+    }
+
+    /// Matches the `fillColor` set on both `NSBox`es in `Main.storyboard`
+    /// (IDs `MPy-SW-b88` / `9VD-Ls-6F0`). Keep in sync if the storyboard ever
+    /// changes — it is the visual fallback when a user disables Liquid Glass.
+    private static let legacyBoxFillColor = NSColor(
+        displayP3Red: 0.184316784,
+        green: 0.184308290,
+        blue: 0.184314042,
+        alpha: 1
+    )
+
+    /// True when the Tahoe Liquid Glass look should be used. Always false on
+    /// pre-Tahoe because the material isn't available there anyway.
+    private var isLiquidGlassEnabled: Bool {
+        guard #available(macOS 26.0, *) else { return false }
+        return defaults.object(forKey: "useLiquidGlass") as? Bool ?? true
+    }
+
+    @objc private func toggleLiquidGlassFromMenu(_ sender: NSMenuItem) {
+        guard #available(macOS 26.0, *) else { return }
+        let current = defaults.object(forKey: "useLiquidGlass") as? Bool ?? true
+        let next = !current
+        defaults.set(next, forKey: "useLiquidGlass")
+        sender.state = next ? .on : .off
+        // Re-apply immediately so a user toggling while the popover is open
+        // sees the change without having to close and reopen it.
+        applyLiquidGlassIfAvailable()
+        applyExcludeSetupRowStyle()
+        (NSApp.delegate as? AppDelegate)?.reapplyPopoverAppearance()
     }
 
     override func viewWillAppear() {
@@ -218,6 +262,7 @@ class ViewController: NSViewController {
     private func syncAppearanceMenuItemsFromDefaults() {
         menuItemShowDock.state = (defaults.object(forKey: "showDockIcon") as? Bool ?? true) ? .on : .off
         menuItemShowMenuBar.state = (defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true) ? .on : .off
+        menuItemLiquidGlass.state = (defaults.object(forKey: "useLiquidGlass") as? Bool ?? true) ? .on : .off
     }
 
     @objc private func toggleDockFromMenu(_ sender: NSMenuItem) {
@@ -358,12 +403,18 @@ class ViewController: NSViewController {
     func setUpMenu() {
         menuItemShowDock.target = self
         menuItemShowMenuBar.target = self
+        menuItemLiquidGlass.target = self
 
         self.settingsMenu.addItem(NSMenuItem(title: "Visit website", action: #selector(openURL), keyEquivalent: ""))
         self.settingsMenu.addItem(checkKey)
         self.settingsMenu.addItem(NSMenuItem.separator())
         self.settingsMenu.addItem(menuItemShowDock)
         self.settingsMenu.addItem(menuItemShowMenuBar)
+        // Liquid Glass is a Tahoe-only feature; hide the opt-out toggle on
+        // older macOS where the popover can't render with the new material.
+        if #available(macOS 26.0, *) {
+            self.settingsMenu.addItem(menuItemLiquidGlass)
+        }
         self.settingsMenu.addItem(NSMenuItem.separator())
         // Lowercase "q" so Cmd+Q works without Shift (ISSUE-13).
         self.settingsMenu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -1023,17 +1074,21 @@ class ViewController: NSViewController {
     }
 
     /// Popover background is dark but AppDelegate forces `.aqua`; without this, labels read as dark-on-dark.
-    /// On macOS 26+ the popover uses Liquid Glass with an adaptive appearance,
-    /// so we fall back to semantic colors instead of forcing a dark palette.
+    /// On macOS 26+ with Liquid Glass enabled, the popover uses an adaptive
+    /// appearance, so we fall back to semantic colors. If the user disabled
+    /// Liquid Glass from the gear menu, we restore the legacy dark palette
+    /// so labels stay readable on the dark popover.
     private func applyExcludeSetupRowStyle() {
         guard let row = excludeSetupStack else { return }
-        if #available(macOS 26.0, *) {
+        if isLiquidGlassEnabled {
             // Let the row adopt the popover's (adaptive) appearance and use
             // semantic label colors — works on both light and dark glass.
+            row.appearance = nil
             for v in row.arrangedSubviews {
                 if let tf = v as? NSTextField {
                     tf.textColor = .labelColor
                 } else if let pop = v as? NSPopUpButton {
+                    pop.appearance = nil
                     let display = pop.title
                     if !display.isEmpty {
                         pop.attributedTitle = NSAttributedString(
