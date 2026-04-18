@@ -31,7 +31,7 @@ final class ExcludeSetupEditorController: NSViewController {
         displayNames = ExcludeSetupStore.loadDisplayNames()
         bundleLists = ExcludeSetupStore.loadBundleLists()
 
-        let title = NSTextField(labelWithString: "Setups bearbeiten")
+        let title = NSTextField(labelWithString: "Edit setups")
         title.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         title.translatesAutoresizingMaskIntoConstraints = false
 
@@ -47,7 +47,7 @@ final class ExcludeSetupEditorController: NSViewController {
         let nameLabel = NSTextField(labelWithString: "Name:")
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         nameField.translatesAutoresizingMaskIntoConstraints = false
-        nameField.placeholderString = "Anzeigename"
+        nameField.placeholderString = "Display name"
         nameField.target = self
         nameField.action = #selector(nameChanged)
 
@@ -66,16 +66,16 @@ final class ExcludeSetupEditorController: NSViewController {
         tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
 
         let col = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("bid"))
-        col.title = "Bundle-ID (nicht ausblenden)"
+        col.title = "Bundle ID (do not hide)"
         col.width = 420
         tableView.addTableColumn(col)
 
-        let addBtn = NSButton(title: "App hinzufügen…", target: self, action: #selector(addApp))
+        let addBtn = NSButton(title: "Add app…", target: self, action: #selector(addApp))
         addBtn.translatesAutoresizingMaskIntoConstraints = false
-        let removeBtn = NSButton(title: "Entfernen", target: self, action: #selector(removeSelected))
+        let removeBtn = NSButton(title: "Remove", target: self, action: #selector(removeSelected))
         removeBtn.translatesAutoresizingMaskIntoConstraints = false
 
-        let doneBtn = NSButton(title: "Fertig", target: self, action: #selector(done))
+        let doneBtn = NSButton(title: "Done", target: self, action: #selector(done))
         doneBtn.keyEquivalent = "\r"
         doneBtn.translatesAutoresizingMaskIntoConstraints = false
 
@@ -161,8 +161,8 @@ final class ExcludeSetupEditorController: NSViewController {
 
     private func presentAppOpenPanel() {
         let panel = NSOpenPanel()
-        panel.title = "App auswählen"
-        panel.prompt = "Auswählen"
+        panel.title = "Choose app"
+        panel.prompt = "Choose"
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false

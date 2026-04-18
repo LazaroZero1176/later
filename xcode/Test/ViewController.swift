@@ -301,7 +301,7 @@ class ViewController: NSViewController {
         guard app.activationPolicy == .regular else { return false }
         if isSelf(app) { return false }
         if ignoreFinder.state == .on && isSystemApp(app) { return false }
-        let mode = ExcludeSetupStore.currentMode()
+        let mode = ExcludeSetupStore.mode(forSessionSlot: SessionSlotStore.activeIndex())
         let excluded = ExcludeSetupStore.excludedBundleIDs(for: mode)
         if let bid = app.bundleIdentifier, excluded.contains(bid) { return false }
         return true
@@ -783,6 +783,7 @@ class ViewController: NSViewController {
             applyEmptySlotUIOnly()
         }
         updateSlotButtonHighlights()
+        syncExcludeSetupPopUp()
         checkAnyWindows()
         updatePreferredContentSize()
     }
@@ -932,14 +933,14 @@ class ViewController: NSViewController {
     private func buildExcludeSetupRowIfNeeded() {
         guard excludeSetupStack == nil else { return }
 
-        let label = NSTextField(labelWithString: "Session-Setup:")
+        let label = NSTextField(labelWithString: "Session setup:")
         label.font = NSFont.systemFont(ofSize: 13)
         label.alignment = .right
 
         excludeSetupPopUp.target = self
         excludeSetupPopUp.action = #selector(excludeSetupModeChanged(_:))
 
-        let edit = NSButton(title: "Bearbeiten…", target: self, action: #selector(openExcludeSetupEditor))
+        let edit = NSButton(title: "Edit…", target: self, action: #selector(openExcludeSetupEditor))
         edit.bezelStyle = .rounded
 
         let row = NSStackView(views: [label, excludeSetupPopUp, edit])
@@ -994,12 +995,13 @@ class ViewController: NSViewController {
 
     private func syncExcludeSetupPopUp() {
         excludeSetupPopUp.removeAllItems()
-        excludeSetupPopUp.addItem(withTitle: "Alles")
+        excludeSetupPopUp.addItem(withTitle: "All")
         let names = ExcludeSetupStore.loadDisplayNames()
         for n in names {
             excludeSetupPopUp.addItem(withTitle: n)
         }
-        switch ExcludeSetupStore.currentMode() {
+        let activeSlot = SessionSlotStore.activeIndex()
+        switch ExcludeSetupStore.mode(forSessionSlot: activeSlot) {
         case .all:
             excludeSetupPopUp.selectItem(at: 0)
         case .slot(let i):
@@ -1015,11 +1017,20 @@ class ViewController: NSViewController {
 
     @objc private func excludeSetupModeChanged(_ sender: NSPopUpButton) {
         let idx = sender.indexOfSelectedItem
+        let activeSlot = SessionSlotStore.activeIndex()
+        let newMode: ExcludeSetupMode
         if idx == 0 {
-            ExcludeSetupStore.setCurrentMode(.all)
+            newMode = .all
         } else if idx >= 1, idx <= ExcludeSetupStore.slotCount {
-            ExcludeSetupStore.setCurrentMode(.slot(idx - 1))
+            newMode = .slot(idx - 1)
+        } else {
+            return
         }
+        ExcludeSetupStore.setMode(newMode, forSessionSlot: activeSlot)
+        // Keep the legacy global mode in sync with the active slot so any code
+        // still reading `currentMode()` sees the same value.
+        ExcludeSetupStore.setCurrentMode(newMode)
+        applyExcludeSetupRowStyle()
         checkAnyWindows()
     }
 
@@ -1034,7 +1045,7 @@ class ViewController: NSViewController {
             self?.syncExcludeSetupPopUp()
         }
         let win = NSWindow(contentViewController: editor)
-        win.title = "Session-Setups"
+        win.title = "Session setups"
         win.styleMask = [.titled, .closable, .miniaturizable]
         win.setContentSize(NSSize(width: 460, height: 400))
         win.center()

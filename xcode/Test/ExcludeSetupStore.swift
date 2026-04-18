@@ -43,8 +43,14 @@ enum ExcludeSetupStore {
     private static let keyDisplayNames = "excludeSetup.displayNames"
     private static let keyBundleLists = "excludeSetup.bundleLists"
     private static let keyMode = "excludeSetup.mode"
+    private static let keyModesPerSessionSlot = "excludeSetup.modesPerSessionSlot"
+    private static let keyLocaleMigrated = "excludeSetup.localeMigratedToEnglish"
 
-    static let defaultDisplayNames = ["Arbeit", "Präsentation", "Coding", "Unterhaltung"]
+    static let defaultDisplayNames = ["Work", "Presentation", "Coding", "Entertainment"]
+
+    /// Legacy German defaults shipped in earlier builds; migrated to the new
+    /// English defaults on first launch after the UI switch to English.
+    private static let legacyGermanDefaultDisplayNames = ["Arbeit", "Präsentation", "Coding", "Unterhaltung"]
 
     private static let defaults = UserDefaults.standard
 
@@ -115,5 +121,47 @@ enum ExcludeSetupStore {
         if defaults.string(forKey: keyMode) == nil {
             setCurrentMode(.all)
         }
+
+        // One-shot migration: if the user is still on the original German defaults
+        // that were never renamed, translate them to the new English defaults so
+        // the UI language stays consistent.
+        if !defaults.bool(forKey: keyLocaleMigrated) {
+            if let existing = defaults.array(forKey: keyDisplayNames) as? [String],
+               existing == legacyGermanDefaultDisplayNames {
+                defaults.set(defaultDisplayNames, forKey: keyDisplayNames)
+            }
+            defaults.set(true, forKey: keyLocaleMigrated)
+        }
+    }
+
+    // MARK: - Per session-slot mode
+
+    /// Returns the exclude mode associated with a given session slot (0..<6).
+    /// Defaults to `.all` if nothing has been configured yet.
+    static func mode(forSessionSlot sessionSlot: Int) -> ExcludeSetupMode {
+        let raws = loadModesPerSessionSlot()
+        guard sessionSlot >= 0, sessionSlot < raws.count,
+              let mode = ExcludeSetupMode(rawValue: raws[sessionSlot]) else {
+            return .all
+        }
+        return mode
+    }
+
+    static func setMode(_ mode: ExcludeSetupMode, forSessionSlot sessionSlot: Int) {
+        var raws = loadModesPerSessionSlot()
+        guard sessionSlot >= 0, sessionSlot < raws.count else { return }
+        raws[sessionSlot] = mode.rawValue
+        defaults.set(raws, forKey: keyModesPerSessionSlot)
+    }
+
+    private static func loadModesPerSessionSlot() -> [String] {
+        let count = SessionSlotStore.slotCount
+        if let stored = defaults.array(forKey: keyModesPerSessionSlot) as? [String],
+           stored.count == count {
+            return stored
+        }
+        let seeded = Array(repeating: ExcludeSetupMode.all.rawValue, count: count)
+        defaults.set(seeded, forKey: keyModesPerSessionSlot)
+        return seeded
     }
 }

@@ -26,7 +26,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list and preview<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
@@ -79,9 +79,12 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 **v2.2** (2026-04-18, this fork)
 - **Six session slots** (1–6, 2×3 grid) inside the popover. Save / restore / cancel actions, the session preview box, and the timer now all target the currently active slot. Switching slots loads that slot's view immediately.
 - Each slot stores its own screenshot on disk (`screenshot-slot-<n>.jpg`); the legacy single-session data is migrated into slot 1 on first launch.
-- New `SessionSlotStore` with JSON persistence in `UserDefaults` (one blob per slot), keeping the existing "Session-Setup" exclude profiles untouched and independent.
+- **Per-slot session setup:** every slot remembers its own exclude profile (`All`, `Work`, `Presentation`, `Coding`, `Entertainment`, or any custom-renamed setup). Configure slot 1 for *Work* and slot 2 for *Coding*, and Later automatically applies the correct preset whenever you switch slots. The chosen preset is persisted per slot in `UserDefaults`.
+- Empty slot preview area is **reserved** with a placeholder ("No session saved in this slot.") so the popover no longer shifts when you save, delete, or switch sessions.
+- New `SessionSlotStore` with JSON persistence in `UserDefaults` (one blob per slot). The shared exclude-setup profiles are unchanged, but each session slot now also stores which profile it uses.
 - Popover layout is now fully **content-driven**: the options box, the session section, and the popover height resize themselves to fit the visible content — no empty gaps below the slots, no clipped Save button when a session is stored vs. empty.
 - Custom `SlotButton` rendering (layer-drawn background, accent colour when active, light text) replaces the native `.rounded` bezel that used to render black on the dark options box.
+- Session-setup UI and default profile names are now **English** (`All`, `Work`, `Presentation`, `Coding`, `Entertainment`; "Edit…", "Session settings", "Add app…", "Remove", "Done"). Existing installs that still used the German defaults are migrated to the English names on first launch; custom names are preserved.
 
 **v2.1** (2026-04-17, this fork)
 - Optional **Dock icon** and **menu bar icon** (persisted in preferences). At least one must stay enabled; otherwise only global shortcuts can open the app (unless shortcuts are disabled in the gear menu).
