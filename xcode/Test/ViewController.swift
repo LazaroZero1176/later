@@ -182,6 +182,19 @@ class ViewController: NSViewController {
         observeModel()
 
         syncExcludeSetupPopUp()
+        applyLiquidGlassIfAvailable()
+    }
+
+    /// On macOS 26 (Tahoe) and later, the popover renders with a Liquid Glass
+    /// material. The pre-existing dark-tinted NSBoxes (`box` for the session
+    /// preview, `optionsBox` for the options row) would cover that material
+    /// with opaque fills, so we make them transparent on Tahoe+ and let the
+    /// popover's backdrop show through. Pre-Tahoe systems keep the legacy
+    /// dark look defined in the storyboard.
+    private func applyLiquidGlassIfAvailable() {
+        guard #available(macOS 26.0, *) else { return }
+        box.fillColor = .clear
+        optionsBox.fillColor = .clear
     }
 
     override func viewWillAppear() {
@@ -1010,8 +1023,30 @@ class ViewController: NSViewController {
     }
 
     /// Popover background is dark but AppDelegate forces `.aqua`; without this, labels read as dark-on-dark.
+    /// On macOS 26+ the popover uses Liquid Glass with an adaptive appearance,
+    /// so we fall back to semantic colors instead of forcing a dark palette.
     private func applyExcludeSetupRowStyle() {
         guard let row = excludeSetupStack else { return }
+        if #available(macOS 26.0, *) {
+            // Let the row adopt the popover's (adaptive) appearance and use
+            // semantic label colors — works on both light and dark glass.
+            for v in row.arrangedSubviews {
+                if let tf = v as? NSTextField {
+                    tf.textColor = .labelColor
+                } else if let pop = v as? NSPopUpButton {
+                    let display = pop.title
+                    if !display.isEmpty {
+                        pop.attributedTitle = NSAttributedString(
+                            string: display,
+                            attributes: [.foregroundColor: NSColor.labelColor]
+                        )
+                    }
+                } else if let btn = v as? NSButton {
+                    btn.contentTintColor = .labelColor
+                }
+            }
+            return
+        }
         row.appearance = NSAppearance(named: .darkAqua)
         for v in row.arrangedSubviews {
             if let tf = v as? NSTextField {

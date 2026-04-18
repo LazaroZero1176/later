@@ -167,8 +167,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPopover(_ sender: AnyObject?) {
         popoverView.animates = true
-        popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
-        popoverView.appearance = NSAppearance(named: .aqua)
+        // On macOS 26 (Tahoe) and later the popover automatically adopts the
+        // new Liquid Glass material. Overriding `backgroundColor` and forcing
+        // `.aqua` would flatten it back to an opaque light panel, so we only
+        // apply the legacy dark-tinted look on pre-Tahoe systems.
+        if #available(macOS 26.0, *) {
+            // Let Liquid Glass handle the backdrop. No overrides.
+        } else {
+            popoverView.backgroundColor = #colorLiteral(red: 0.1490048468, green: 0.1490279436, blue: 0.1489969194, alpha: 1)
+            popoverView.appearance = NSAppearance(named: .aqua)
+        }
 
         if let button = statusItem.button,
            statusItem.isVisible,

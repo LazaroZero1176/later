@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.3.1.dmg`](./Later-2.3.1.dmg) from this repo.
+1. Download the latest [`Later-2.4.dmg`](./Later-2.4.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,10 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.4** (2026-04-18, this fork)
+- **Liquid Glass on macOS 26 (Tahoe).** When running on Tahoe or later, the popover now adopts the system Liquid Glass material instead of the fixed dark panel from earlier versions. The session preview box and the options box render with transparent fills so the glass material shows through the whole popover. The session-setup row uses semantic label colors and picks up the adaptive light/dark glass automatically. Older macOS (13.0–15.x) keeps the legacy dark popover look — the change is fully runtime-gated via `#available(macOS 26.0, *)`, no change to the 13.0 deployment target.
+- DMG renamed to `Later-2.4.dmg`.
 
 **v2.3.1** (2026-04-18, this fork)
 - Follow-up fix to v2.3: restoring a session after a previous restore had terminated one of its apps now re-launches that app instead of silently skipping it. `activate()` used to match the still-terminating `NSRunningApplication` entry and short-circuit to `unhide()` on a zombie process — it now ignores terminated entries so the launch branch runs. See [`ISSUES.md`](./ISSUES.md) ISSUE-29.
