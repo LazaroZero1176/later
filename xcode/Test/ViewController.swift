@@ -683,13 +683,20 @@ class ViewController: NSViewController {
     /// Reopen an app, preferring a bundle identifier lookup via LaunchServices (ISSUE-11, SEC-05).
     /// Falls back to legacy executable URL only if that fails.
     private func activate(name: String, bundleID: String?, legacyURL: String?) {
-        // Already running → just unhide.
+        // Already running → just unhide. `app.terminate()` is async and a
+        // just-terminated app can linger in `runningApplications` with
+        // `isTerminated == true` for a short window; we must ignore those
+        // zombies, otherwise the launch branch below is skipped and the app
+        // stays gone (regression fixed in v2.3.1).
         if let bid = bundleID, !bid.isEmpty,
-           let running = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first {
+           let running = NSRunningApplication
+               .runningApplications(withBundleIdentifier: bid)
+               .first(where: { !$0.isTerminated }) {
             running.unhide()
             return
         }
-        if let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }) {
+        if let running = NSWorkspace.shared.runningApplications
+            .first(where: { $0.localizedName == name && !$0.isTerminated }) {
             running.unhide()
             return
         }

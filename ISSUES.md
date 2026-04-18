@@ -3,9 +3,9 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.3 (Build 7)**, ad-hoc signiert, macOS 13.0+ deployment target.
+> Aktueller Build (dieses Repo): **v2.3.1 (Build 8)**, ad-hoc signiert, macOS 13.0+ deployment target.
 >
-> Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
+> Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
 
 ---
@@ -215,6 +215,12 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: Die Close-Schleife filtert jetzt gegen `targetBundleIDs`/`targetNames` (zusätzlich zu `com.apple.Terminal` und `isSystemApp`). Nur Apps, die **nicht** zur Ziel-Session gehören, werden beendet. `activate(...)` entdeckt laufende Session-Apps via Bundle-ID und macht lediglich `unhide()` — kein Neustart. Die Checkbox wurde entsprechend umbenannt in „Only apps from this session (close others)" (`Main.storyboard`, `US9-TX-iLZ`).
 - Datei: `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`.
 
+### ISSUE-29 · MED · FIX — v2.3.1: `activate()` übersah terminierende Apps beim Relaunch
+- Beweis: `ViewController.activate(name:bundleID:legacyURL:)` (v2.3, Zeilen 685-695) nahm den ersten Treffer aus `NSRunningApplication.runningApplications(withBundleIdentifier:)` bzw. der Name-Fallback-Schleife und rief `unhide()` auf, ohne `isTerminated` zu prüfen. `app.terminate()` ist aber asynchron — gerade terminierte Apps bleiben für einen kurzen Moment mit `isTerminated == true` im `runningApplications`-Array.
+- Impact: Klassisches v2.3-Preset-Szenario brach. Slot 1 ohne Claude wiederherstellen (Close-others an) → Claude bekommt `terminate()`. Sofort danach Slot 2 mit Claude wiederherstellen → `activate()` findet den noch nicht abgeschlossenen Claude-Prozess, `unhide()` ist no-op, Launch-Zweig wird übersprungen, Claude bleibt weg. Trat bei jedem Slot-Wechsel zwischen überlappenden Sessions auf.
+- Fix: Beide Lookups filtern jetzt `!$0.isTerminated`, der Launch-Zweig greift in diesem Fall wieder und startet die App neu. Kein neuer Sleep/Retry nötig — `NSWorkspace.openApplication(at:)` ist gegenüber einer noch nicht ganz beendeten Instanz gutmütig.
+- Datei: `xcode/Test/ViewController.swift`.
+
 ### ISSUE-30 · MED · FIX — v2.1: Dock- und Menüleisten-Sichtbarkeit + Popover-Fallback
 - Anforderung: Nutzer soll **Dock-Icon** und **Menüleisten-Icon** unabhängig ein-/ausschalten können (`UserDefaults`: `showDockIcon`, `showMenuBarIcon`; Standard jeweils an). Mindestens eines muss aktiv bleiben, sonst nur noch globaler Hotkey (Hinweisdialog).
 - Umsetzung:
@@ -308,6 +314,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-26 | FIX (v2.2: Placeholder-Toggle lässt `timeWrapper` in Ruhe) | `xcode/Test/ViewController.swift` |
 | ISSUE-27 | FIX (v2.3: Restore lässt den Slot erhalten, Guard gegen leeren Slot) | `xcode/Test/ViewController.swift` |
 | ISSUE-28 | FIX (v2.3: Close-Schleife nimmt Session-Apps aus, Checkbox umbenannt) | `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard` |
+| ISSUE-29 | FIX (v2.3.1: `activate()` ignoriert terminierende Apps, Relaunch klappt wieder) | `xcode/Test/ViewController.swift` |
 | ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
