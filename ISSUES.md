@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.2 (Build 6)**, ad-hoc signiert, macOS 13.0+ deployment target.
+> Aktueller Build (dieses Repo): **v2.3 (Build 7)**, ad-hoc signiert, macOS 13.0+ deployment target.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -203,6 +203,18 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: `timeWrapper` wird vom generischen Placeholder-Toggle ausgespart; Sichtbarkeit und Höhe bleiben allein bei `showTimer()`/`hideTimer()`.
 - Datei: `xcode/Test/ViewController.swift`.
 
+### ISSUE-27 · MED · FIX — v2.3: Restore löschte den aktiven Slot implizit
+- Beweis: `ViewController.restoreSessionGlobal()` rief am Ende `noSessions()`, wodurch `SessionSlotStore.setSlot(.empty, at:)` den gerade restaurierten Slot (inkl. Screenshot-Datei) sofort wieder entfernte.
+- Impact: Sessions konnten nicht als wiederverwendbare Presets dienen. Jeder Hotkey-/Timer-/Button-Restore zwang den Nutzer, danach manuell neu zu speichern. Besonders schmerzhaft in Kombination mit dem 15-Minuten-Auto-Restore des Timers — er hätte den Slot bei jedem Wake einmalig verbraucht.
+- Fix: `restoreSessionGlobal()` ruft `noSessions()` nicht mehr auf, sondern `refreshUIForActiveSlot()`. Das Leeren eines Slots passiert ausschließlich noch über den X-Button (`hideBox:` → `noSessions()`). Zusätzlich verhindert ein `guard stored.hasSession else { NSSound.beep(); return }` am Anfang, dass ein Restore auf einem leeren Slot mit aktivierter „Close others"-Checkbox wahllos laufende Apps terminiert.
+- Datei: `xcode/Test/ViewController.swift`.
+
+### ISSUE-28 · LOW · FIX — v2.3: `closeApps` terminierte auch Session-eigene Apps
+- Beweis: Die alte Close-Schleife in `restoreSessionGlobal()` beendete jede App, die `shouldInclude(_:)` passierte, und öffnete danach alle Slot-Apps über `activate(...)` neu. Apps, die bereits zur Ziel-Session gehörten, wurden also unnötig terminiert und sofort wieder gestartet.
+- Impact: Sichtbares Flicker/Neuladen bei jedem Restore, unnötige Dokument-Reopen-Dialoge, und der Checkbox-Name „Close all apps when restoring" suggerierte einen destruktiveren Modus als gewünscht.
+- Fix: Die Close-Schleife filtert jetzt gegen `targetBundleIDs`/`targetNames` (zusätzlich zu `com.apple.Terminal` und `isSystemApp`). Nur Apps, die **nicht** zur Ziel-Session gehören, werden beendet. `activate(...)` entdeckt laufende Session-Apps via Bundle-ID und macht lediglich `unhide()` — kein Neustart. Die Checkbox wurde entsprechend umbenannt in „Only apps from this session (close others)" (`Main.storyboard`, `US9-TX-iLZ`).
+- Datei: `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`.
+
 ### ISSUE-30 · MED · FIX — v2.1: Dock- und Menüleisten-Sichtbarkeit + Popover-Fallback
 - Anforderung: Nutzer soll **Dock-Icon** und **Menüleisten-Icon** unabhängig ein-/ausschalten können (`UserDefaults`: `showDockIcon`, `showMenuBarIcon`; Standard jeweils an). Mindestens eines muss aktiv bleiben, sonst nur noch globaler Hotkey (Hinweisdialog).
 - Umsetzung:
@@ -243,6 +255,10 @@ Die v2.2-Änderungen wurden separat auf Angriffsflächen geprüft. Stand: keine 
 | `SessionSlotStore.migrateIfNeeded()` legacy-Screenshot-Move | Quelle/Ziel liegen beide unter `Application Support/<bundleID>/`, `moveItem` nur wenn Quelle existiert und Ziel fehlt. | OK. |
 
 Keine neuen SEC-Einträge notwendig. Bestehende Einträge SEC-04/05 gelten fortgeführt für die Multi-Slot-Daten.
+
+### Sicherheits-Review v2.3 (Preset-Restore)
+
+Die Umstellung auf wiederverwendbare Presets (ISSUE-27/28) ändert weder die Persistenz­form noch die Exekutions-Pfade — App-Start läuft weiterhin über `NSWorkspace.openApplication(at:)` mit Bundle-ID-Filter (SEC-05), und die Close-Schleife respektiert unverändert `shouldInclude`, `com.apple.Terminal` und `isSystemApp`. Neu hinzugekommen ist lediglich der Diff-Filter gegen die Ziel-Session (`targetBundleIDs`/`targetNames`), der die Menge beendeter Apps *verkleinert*. Keine neuen SEC-Findings.
 
 ---
 
@@ -290,6 +306,8 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-24 | FIX (v2.2: englische Register-Defaults für `excludeSetup.displayNames`) | `xcode/Test/AppDelegate.swift` |
 | ISSUE-25 | FIX (v2.2: Store-Migrationen vor erstem UI-Refresh) | `xcode/Test/ViewController.swift` |
 | ISSUE-26 | FIX (v2.2: Placeholder-Toggle lässt `timeWrapper` in Ruhe) | `xcode/Test/ViewController.swift` |
+| ISSUE-27 | FIX (v2.3: Restore lässt den Slot erhalten, Guard gegen leeren Slot) | `xcode/Test/ViewController.swift` |
+| ISSUE-28 | FIX (v2.3: Close-Schleife nimmt Session-Apps aus, Checkbox umbenannt) | `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard` |
 | ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |

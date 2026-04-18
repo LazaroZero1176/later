@@ -957,7 +957,7 @@
                                         </popUpButton>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="tpg-xD-tkr">
                                             <rect key="frame" x="20" y="362" width="220" height="32"/>
-                                            <buttonCell key="cell" type="bevel" title=" Close all apps when restoring" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="US9-TX-iLZ">
+                                            <buttonCell key="cell" type="bevel" title=" Only apps from this session (close others)" bezelStyle="regularSquare" image="unchecky" imagePosition="left" alternateImage="checky" inset="2" id="US9-TX-iLZ">
                                                 <behavior key="behavior" changeContents="YES" doesNotDimImage="YES" lightByContents="YES"/>
                                                 <font key="font" metaFont="system"/>
                                             </buttonCell>

@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> ⏱ Schedule apps to reopen after some time to get back in the flow<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⌨️ Keyboard shortcuts to save and restore your session<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.2.dmg`](./Later-2.2.dmg) from this repo.
+1. Download the latest [`Later-2.3.dmg`](./Later-2.3.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,13 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.3** (2026-04-18, this fork)
+- **Sessions are now reusable presets.** Restoring a slot (green button, `Cmd+Shift+R`, or the 15-minute timer-wake) no longer clears it — the slot keeps its app list, screenshot, and session-setup binding, so you can hop back to the same workspace any time. Use the X on the preview box to forget a slot explicitly.
+- The existing "Close all apps when restoring" checkbox is now relabelled **"Only apps from this session (close others)"** and has become a smart diff: when enabled, Later terminates only running apps that are **not** part of the target slot (Terminal and system apps remain protected), while apps that *are* part of the session simply get unhidden instead of restarted — no more flicker. When disabled, restore stays additive as before.
+- Added a safety guard: triggering restore on an empty slot now beeps and does nothing, instead of quietly terminating everything because the close-others step ran with no target.
+- See [`ISSUES.md`](./ISSUES.md) ISSUE-27 / ISSUE-28 for the before/after reasoning.
+- DMG renamed to `Later-2.3.dmg`.
 
 **v2.2** (2026-04-18, this fork)
 - **Six session slots** (1–6, 2×3 grid) inside the popover. Save / restore / cancel actions, the session preview box, and the timer now all target the currently active slot. Switching slots loads that slot's view immediately.

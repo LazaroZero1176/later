@@ -722,14 +722,29 @@ class ViewController: NSViewController {
     }
 
     @objc func restoreSessionGlobal() {
+        let stored = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
+        guard stored.hasSession else {
+            // Empty slot — nothing to restore. Beep so the user notices and
+            // make sure we don't run the close-others loop against thin air.
+            NSSound.beep()
+            return
+        }
+
+        // Build a target set so the "close others" path can leave the
+        // session's own apps untouched (no restart flicker) and so we have
+        // a name-based fallback for legacy slots without bundle IDs.
+        let targetBundleIDs = Set(stored.appBundleIDs.filter { !$0.isEmpty })
+        let targetNames = Set(stored.appNames)
+
         if closeApps.state == .on {
             for app in NSWorkspace.shared.runningApplications where shouldInclude(app) {
                 if app.bundleIdentifier == "com.apple.Terminal" { continue }
+                if let bid = app.bundleIdentifier, targetBundleIDs.contains(bid) { continue }
+                if let name = app.localizedName, targetNames.contains(name) { continue }
                 app.terminate()
             }
         }
 
-        let stored = SessionSlotStore.slot(at: SessionSlotStore.activeIndex())
         let names = stored.appNames
         let bundleIDs = stored.appBundleIDs
         let legacyURLs = stored.appsLegacy
@@ -741,7 +756,11 @@ class ViewController: NSViewController {
             let url = i < legacyURLs.count ? legacyURLs[i] : nil
             activate(name: name, bundleID: bid, legacyURL: url)
         }
-        noSessions()
+
+        // Restore is now idempotent: the slot stays populated so it can be
+        // re-applied any time as a preset. Use the X ("hideBox") control to
+        // explicitly forget a slot.
+        refreshUIForActiveSlot()
 
         (NSApp.delegate as? AppDelegate)?.closePopover(self)
     }
