@@ -261,6 +261,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(NSMenuItem.separator())
+
+        // Save-to-slot submenu — the "boss is coming, make it clean" panic
+        // button. Picking a slot sets it active and runs saveSessionGlobal(),
+        // which screenshots, records the running apps, and then hides/closes
+        // them per the popover's current exclude/close settings. Overwrites
+        // the slot's previous contents without confirmation — mirrors the
+        // regular Save button's behavior.
+        let saveRoot = NSMenuItem(title: "Save current session to…",
+                                  action: nil,
+                                  keyEquivalent: "")
+        let saveSub = NSMenu()
+        saveSub.autoenablesItems = false
+        for i in 0..<SessionSlotStore.slotCount {
+            let slot = SessionSlotStore.slot(at: i)
+            let suffix: String
+            if slot.hasSession {
+                suffix = "overwrite \(slot.sessionName)"
+            } else {
+                suffix = "empty"
+            }
+            let item = NSMenuItem(title: "Slot \(i + 1) — \(suffix)",
+                                  action: #selector(quickSaveSlot(_:)),
+                                  keyEquivalent: "")
+            item.target = self
+            item.tag = i
+            item.state = (i == active) ? .on : .off
+            saveSub.addItem(item)
+        }
+        saveRoot.submenu = saveSub
+        menu.addItem(saveRoot)
+
+        menu.addItem(NSMenuItem.separator())
         let openItem = NSMenuItem(title: "Open Later…",
                                   action: #selector(togglePopoverFromMenu(_:)),
                                   keyEquivalent: "")
@@ -291,6 +323,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // equivalent and is idempotent.
             _ = vc.view
             vc.restoreSessionGlobal()
+        }
+    }
+
+    @objc private func quickSaveSlot(_ sender: NSMenuItem) {
+        let idx = sender.tag
+        guard idx >= 0 && idx < SessionSlotStore.slotCount else { return }
+        SessionSlotStore.setActiveIndex(idx)
+        if let vc = popoverView.contentViewController as? ViewController {
+            // Same cold-launch guard as quickRestoreSlot: force the view to
+            // load before saveSessionGlobal() runs, since it touches outlets
+            // (`button`, `noSessionLabel`, ...) to reflect the saved state.
+            _ = vc.view
+            vc.saveSessionGlobal()
         }
     }
 

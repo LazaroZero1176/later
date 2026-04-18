@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.4.2 (Build 11)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.4.3 (Build 12)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -221,6 +221,17 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: Beide Lookups filtern jetzt `!$0.isTerminated`, der Launch-Zweig greift in diesem Fall wieder und startet die App neu. Kein neuer Sleep/Retry nötig — `NSWorkspace.openApplication(at:)` ist gegenüber einer noch nicht ganz beendeten Instanz gutmütig.
 - Datei: `xcode/Test/ViewController.swift`.
 
+### ISSUE-34 · LOW · FEATURE — v2.4.3: Save-Submenu in der Rechtsklick-Quickleiste
+- Kontext: Die v2.4.2-Quickleiste konnte nur Sessions *wiederherstellen*. Das typische „Chef kommt rein, Desktop muss sofort sauber sein"-Szenario erforderte trotzdem das Popover, weil der grüne Save-Button dort lebt. Zwei Klicks zu viel für eine Panik-Geste.
+- Umsetzung:
+  - `showQuickMenu()` bekommt zwischen der Restore-Liste und „Open Later…" einen neuen Eintrag **„Save current session to…"** mit 6-Slot-Submenu.
+  - Submenu-Titel: `Slot N — empty` für leere Slots, `Slot N — overwrite <sessionName>` für belegte — keine Confirm-Dialog-Unterbrechung, die Bezeichnung ist der explizite Hinweis.
+  - Aktiver Slot bekommt auch im Save-Submenu ein Häkchen, konsistent mit der Restore-Liste.
+  - Neue `@objc private func quickSaveSlot(_:)` setzt `SessionSlotStore.setActiveIndex(tag)`, erzwingt dieselbe `_ = vc.view`-Idempotenz wie `quickRestoreSlot(_:)` (Kaltstart-Schutz, `saveSessionGlobal()` referenziert `button`, `noSessionLabel` usw.) und ruft `vc.saveSessionGlobal()`. Das löst dieselbe Screenshot + Exclude/Close-Pipeline aus wie der grüne Button im Popover — inklusive `NSApp.setActivationPolicy(.regular)`-Dance aus ISSUE-23.
+  - Es wird bewusst kein Confirm-Dialog eingebaut: die Session lässt sich mit dem neuen 6-Slot-Backup trivial wieder ersetzen, und ein Blockier-Dialog würde den Panik-Use-Case kaputtmachen.
+- Datei: `xcode/Test/AppDelegate.swift`.
+- Versions-Entscheidung: Patch-Bump (2.4.2 → 2.4.3), additives Feature aufbauend auf der v2.4.2-Quickleiste.
+
 ### ISSUE-33 · LOW · FEATURE — v2.4.2: Session-Quickleiste via Rechtsklick aufs Menüleisten-Icon
 - Kontext: Bis v2.4.1 war die einzige Möglichkeit, eine Session wiederherzustellen, das Popover zu öffnen (Linksklick / Hotkey / Dock-Icon), den richtigen Slot auszuwählen und den grünen Restore-Button zu drücken. Für reine „Preset-Nutzer" (Work/Home/Coding) ist das drei Klicks zu viel.
 - Umsetzung:
@@ -350,6 +361,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-31 | FEATURE (v2.4: Liquid-Glass-Opt-in auf macOS 26, runtime-gated, pre-Tahoe unverändert) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-32 | FEATURE (v2.4.1: Zahnrad-Menü-Toggle zum Deaktivieren von Liquid Glass, Live-Update) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-33 | FEATURE (v2.4.2: Rechtsklick-Quickleiste auf dem Menüleisten-Icon, Ein-Klick-Restore über `NSMenu`) | `xcode/Test/AppDelegate.swift` |
+| ISSUE-34 | FEATURE (v2.4.3: Save-Submenu in der Rechtsklick-Quickleiste, Slot-Auswahl + `saveSessionGlobal()`) | `xcode/Test/AppDelegate.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
