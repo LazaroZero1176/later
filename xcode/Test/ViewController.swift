@@ -216,6 +216,19 @@ class ViewController: NSViewController {
     /// pattern-matching the title.
     private let clockDropdownItemTag = 7711
 
+    /// Opens the central Time planner window (all six slots). Tag must stay
+    /// in sync with `SessionTimePlannerController.PlannerMenuTag.clock`.
+    private let timePlannerMenuTag = 7713
+    private let timePlannerMenuTitle = "Time planner…"
+
+    /// Gear menu — opens the same window as the popover dropdown entry.
+    private let menuItemTimePlanner = NSMenuItem(
+        title: "Time planner…",
+        action: #selector(openTimePlannerFromGear(_:)),
+        keyEquivalent: ""
+    )
+
+    private var sessionTimerObserver: NSObjectProtocol?
 
     @IBOutlet weak var boxHeight: NSLayoutConstraint!
     @IBOutlet weak var topBoxSpacing: NSLayoutConstraint!
@@ -282,8 +295,26 @@ class ViewController: NSViewController {
         setUpMenu()
         observeModel()
 
+        sessionTimerObserver = NotificationCenter.default.addObserver(
+            forName: .laterSessionTimersChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.refreshUIForActiveSlot()
+            self.refreshSlotBadges()
+            self.startUiTickerIfNeeded()
+            self.updateTimeLabelForActiveSlot()
+        }
+
         syncExcludeSetupPopUp()
         applyLiquidGlassIfAvailable()
+    }
+
+    deinit {
+        if let o = sessionTimerObserver {
+            NotificationCenter.default.removeObserver(o)
+        }
     }
 
     /// On macOS 26 (Tahoe) and later, the popover can render with a Liquid
@@ -608,10 +639,12 @@ class ViewController: NSViewController {
         menuItemLiquidGlass.target = self
         menuItemConfigureShortcuts.target = self
         menuItemEnableShortcuts.target = self
+        menuItemTimePlanner.target = self
 
         self.settingsMenu.addItem(NSMenuItem(title: "Visit website", action: #selector(openURL), keyEquivalent: ""))
         self.settingsMenu.addItem(menuItemConfigureShortcuts)
         self.settingsMenu.addItem(menuItemEnableShortcuts)
+        self.settingsMenu.addItem(menuItemTimePlanner)
         self.settingsMenu.addItem(NSMenuItem.separator())
         self.settingsMenu.addItem(menuItemShowDock)
         self.settingsMenu.addItem(menuItemShowMenuBar)
@@ -813,19 +846,22 @@ class ViewController: NSViewController {
                 ReopenTimerManager.shared.schedule(slotIndex: idx, policy: slot.activeReopenPolicy)
             }
         } else {
-            slot.reopenMode = .off
-            SessionSlotStore.setSlot(at: idx, slot)
-            ReopenTimerManager.shared.cancel(slotIndex: idx)
+            SessionTimerEditing.applyOff(slotIndex: idx)
         }
         rebuildTimeDropdownForActiveSlot()
         refreshSlotBadges()
         startUiTickerIfNeeded()
     }
 
+    @objc private func openTimePlannerFromGear(_ sender: Any?) {
+        (NSApp.delegate as? AppDelegate)?.openTimePlanner(sender)
+    }
+
     /// Fired when the user picks one of the `timeDropdown` entries. We drive
     /// the active slot's `reopenMode` / `reopenDurationMinutes` /
-    /// `reopenClock*` fields from the selection. The "At specific time…"
-    /// item opens a programmatic sheet instead of persisting anything.
+    /// `reopenClock*` fields from the selection. "Time planner…" opens the
+    /// central window for all six slots; the dynamic clock header re-opens the
+    /// clock editor for the active slot only.
     @IBAction func timeDropdownChanged(_ sender: NSPopUpButton) {
         guard let item = sender.selectedItem else { return }
         // The dynamic "At HH:MM" header (clockDropdownItemTag) simply
@@ -834,11 +870,13 @@ class ViewController: NSViewController {
             presentClockTimeSheet()
             return
         }
-        if item.title == clockMenuTitle {
-            presentClockTimeSheet()
+        if item.tag == timePlannerMenuTag {
+            (NSApp.delegate as? AppDelegate)?.openTimePlanner(nil)
+            rebuildTimeDropdownForActiveSlot()
             return
         }
-        // Duration choices.
+        // Duration choices — menu item actions must be nil so only the
+        // NSPopUpButton's action fires (AppKit).
         let minutes: Int?
         switch item.title {
         case "15 minutes": minutes = 15
@@ -849,14 +887,7 @@ class ViewController: NSViewController {
         }
         guard let mins = minutes else { return }
         let idx = SessionSlotStore.activeIndex()
-        var slot = SessionSlotStore.slot(at: idx)
-        slot.reopenMode = .duration
-        slot.reopenDurationMinutes = mins
-        SessionSlotStore.setSlot(at: idx, slot)
-        // Duration timers arm on Save; just cancel any stale arming here.
-        ReopenTimerManager.shared.cancel(slotIndex: idx)
-        rebuildTimeDropdownForActiveSlot()
-        refreshSlotBadges()
+        SessionTimerEditing.applyDuration(slotIndex: idx, minutes: mins)
     }
 
     @IBAction func click(_ sender: Any) {
@@ -1458,11 +1489,6 @@ class ViewController: NSViewController {
 
     // MARK: - Time dropdown binding (v2.6.0)
 
-    /// Title used for the "At specific time…" menu entry. Kept as a constant
-    /// so the action handler can identify clicks without depending on the
-    /// menu item's tag (storyboard-declared items ship with tag 0).
-    private let clockMenuTitle = "At specific time…"
-
     /// Rebuild the `timeDropdown` menu from the active slot's current
     /// `reopenMode`. While in clock-time mode we insert a dynamic header
     /// item showing "At 13:30" (or "Mon, Tue · 13:30" when recurring) so
@@ -1477,21 +1503,20 @@ class ViewController: NSViewController {
         // clock-time mode). Clicking it re-opens the editor.
         if slot.reopenMode == .clockTime {
             let header = NSMenuItem(title: clockHeaderTitle(for: slot),
-                                    action: #selector(timeDropdownChanged(_:)),
+                                    action: nil,
                                     keyEquivalent: "")
             header.tag = clockDropdownItemTag
-            header.target = self
             menu.addItem(header)
             menu.addItem(NSMenuItem.separator())
         }
 
         // Duration choices. Keep wording in sync with the localized
         // storyboard defaults so existing screenshots / docs stay valid.
+        // Per-item actions must stay nil — only `timeDropdown.action` fires.
         for title in ["15 minutes", "30 minutes", "1 hour", "5 hours"] {
             let it = NSMenuItem(title: title,
-                                action: #selector(timeDropdownChanged(_:)),
+                                action: nil,
                                 keyEquivalent: "")
-            it.target = self
             if slot.reopenMode == .duration,
                durationMinutes(for: title) == slot.reopenDurationMinutes {
                 it.state = .on
@@ -1500,11 +1525,11 @@ class ViewController: NSViewController {
         }
         menu.addItem(NSMenuItem.separator())
 
-        let clock = NSMenuItem(title: clockMenuTitle,
-                               action: #selector(timeDropdownChanged(_:)),
-                               keyEquivalent: "")
-        clock.target = self
-        menu.addItem(clock)
+        let plannerItem = NSMenuItem(title: timePlannerMenuTitle,
+                                     action: nil,
+                                     keyEquivalent: "")
+        plannerItem.tag = timePlannerMenuTag
+        menu.addItem(plannerItem)
 
         timeDropdown.menu = menu
 
@@ -1570,7 +1595,12 @@ class ViewController: NSViewController {
             initialWeekdays: Set(slot.reopenWeekdays)
         )
         sheet.onConfirm = { [weak self] hour, minute, weekdays in
-            self?.applyClockTimeChoice(hour: hour, minute: minute, weekdays: weekdays)
+            self?.applyClockTimeChoice(
+                slotIndex: SessionSlotStore.activeIndex(),
+                hour: hour,
+                minute: minute,
+                weekdays: weekdays
+            )
         }
         sheet.onCancel = { [weak self] in
             // The user already pre-selected "At specific time…" in the
@@ -1592,29 +1622,14 @@ class ViewController: NSViewController {
         win.makeKeyAndOrderFront(nil)
     }
 
-    private func applyClockTimeChoice(hour: Int, minute: Int, weekdays: Set<Int>) {
-        let idx = SessionSlotStore.activeIndex()
-        var slot = SessionSlotStore.slot(at: idx)
-        slot.reopenMode = .clockTime
-        slot.reopenClockHour = max(0, min(23, hour))
-        slot.reopenClockMinute = max(0, min(59, minute))
-        slot.reopenWeekdays = weekdays.sorted()
-        SessionSlotStore.setSlot(at: idx, slot)
-        // Reflect mode change on the "Reopen this session" checkbox.
-        waitCheckbox.state = .on
-        // Arm immediately if the slot has content — this is the whole point
-        // of recurring schedules ("set and forget"). One-shot clock times
-        // with content also arm here, matching the user's expectation that
-        // confirming a time schedules it.
-        if slot.hasSession {
-            ReopenTimerManager.shared.schedule(slotIndex: idx, policy: slot.activeReopenPolicy)
-        } else {
-            ReopenTimerManager.shared.cancel(slotIndex: idx)
-        }
-        rebuildTimeDropdownForActiveSlot()
-        refreshSlotBadges()
-        startUiTickerIfNeeded()
-        updateTimeLabelForActiveSlot()
+    private func applyClockTimeChoice(slotIndex: Int, hour: Int, minute: Int, weekdays: Set<Int>) {
+        SessionTimerEditing.applyClockTime(
+            slotIndex: slotIndex,
+            hour: hour,
+            minute: minute,
+            weekdays: weekdays
+        )
+        // `laterSessionTimersChanged` refreshes the popover; no extra work here.
     }
 
     @objc private func openExcludeSetupEditor() {

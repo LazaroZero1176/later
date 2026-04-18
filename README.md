@@ -26,13 +26,13 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 ## Features
 
-👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> ⌨️ **Configurable global shortcuts** — rebind Save / Restore and assign a one-key jump to each of the six slots from the gear menu's *Configure shortcuts…* sheet<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ **Per-slot reopen timer** — pause any slot for a fixed duration (15 min / 30 min / 1 h / 5 h) or schedule it to a specific clock time, optionally with a weekday pattern (daily or e.g. Mon/Tue/Thu). All six slots can be armed in parallel; timers survive an app quit.<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
+👻 Hide or close all your apps<br> ⚡️ Restore your session with just one click<br> 👀 View metadata and a preview of your saved sessions<br> 🗂 **Six independent session slots** — switch between saved workspaces (e.g. "coding", "meeting", "off") with a 2×3 grid in the popover, each slot keeps its own app list, preview, and session-setup preset<br> ♻️ **Reusable session presets** — restoring a slot no longer empties it, so you can hop back to the same layout any time (optionally terminating everything that isn't part of it)<br> 🖱 **Right-click quickbar on the menu bar icon** — jump straight to any of the six slots and restore it in one click, or save the current desktop into any slot through the *Save current session to…* submenu (panic-button for "boss is coming")<br> ⌨️ **Configurable global shortcuts** — rebind Save / Restore and assign a one-key jump to each of the six slots from the gear menu's *Configure shortcuts…* sheet<br> 🧊 **Liquid Glass on macOS 26 Tahoe** — the popover adopts the system glass material automatically when you're on Tahoe<br> ⏱ **Per-slot reopen timer** — pause any slot for a fixed duration (15 min / 30 min / 1 h / 5 h) or schedule it to a specific clock time, optionally with a weekday pattern (daily or e.g. Mon/Tue/Thu). Open **Time planner…** from the gear menu or the popover time dropdown to review and edit all six slots in one window. All six slots can be armed in parallel; timers survive an app quit.<br> 🔋 Save battery by closing your apps instead of leaving them open<br> ⚙️ Gear menu: website, shortcuts, Dock / menu bar visibility, Quit — plus advanced options in the popover (ignore apps, terminate vs hide, etc.)
 
 ## Installing Later
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.6.2.dmg`](./Later-2.6.2.dmg) from this repo.
+1. Download the latest [`Later-2.7.0.dmg`](./Later-2.7.0.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -75,6 +75,11 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
 ## Changelog
+
+**v2.7.0** (2026-04-18, this fork)
+- **Time planner window.** The reopen-timer choices for all six session slots are available in one scrollable window (**Time planner**), opened from the gear menu or via **Time planner…** in the popover’s time dropdown (the former **At specific time…** entry is renamed accordingly). Each row shows the slot name, a short status summary, and the same Off / duration / clock-time options as the per-slot dropdown, including the clock-time sheet for weekday patterns.
+- Shared timer-editing helpers live in `SessionTimerEditing.swift`; the planner UI is `SessionTimePlannerController`. The Xcode project now includes proper `PBXFileReference` entries for these sources (fixes a Release build where the types were missing from the module).
+- DMG renamed to `Later-2.7.0.dmg`. See [`ISSUES.md`](./ISSUES.md) ISSUE-39.
 
 **v2.6.2** (2026-04-18, this fork)
 - **Fix: "At specific time…" did not show the clock / weekday editor.** The timer UI lives inside the popover; v2.6.0 used `NSViewController.presentAsSheet(_:)` to present `ClockTimeSheetController`. That API does not reliably attach a visible sheet when the parent view controller is embedded in an `NSPopover` — the sheet often never appears. The editor is now hosted in a normal titled window (`Reopen schedule`), same pattern as *Session setups* and *Configure shortcuts…*. See [`ISSUES.md`](./ISSUES.md) ISSUE-38.

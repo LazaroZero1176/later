@@ -31,6 +31,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// false` so we can reopen it without re-instantiating the view.
     private var shortcutWindow: NSWindow?
 
+    /// v2.7.0 — all six session slots' reopen timers in one place.
+    private var timePlannerWindow: NSWindow?
+
     func runApp() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
@@ -436,6 +439,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // by default we run as .accessory when the Dock icon is hidden.
         NSApp.activate(ignoringOtherApps: true)
         shortcutWindow?.makeKeyAndOrderFront(sender)
+    }
+
+    /// Central UI for planning per-slot reopen timers (v2.7.0). Invoked from
+    /// the gear menu and from the popover's "Time planner…" dropdown entry.
+    @objc func openTimePlanner(_ sender: Any?) {
+        if let w = timePlannerWindow, w.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            w.makeKeyAndOrderFront(sender)
+            return
+        }
+        let vc = SessionTimePlannerController()
+        let win = NSWindow(contentViewController: vc)
+        win.title = "Time planner"
+        win.styleMask = [.titled, .closable, .miniaturizable]
+        win.isReleasedWhenClosed = false
+        win.setContentSize(NSSize(width: 540, height: 560))
+        win.center()
+        timePlannerWindow = win
+        NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(sender)
     }
 
     /// Apply or clear the legacy dark popover overrides based on the user's

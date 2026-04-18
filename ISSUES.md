@@ -3,7 +3,7 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.6.2 (Build 16)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
+> Aktueller Build (dieses Repo): **v2.7.0 (Build 17)**, ad-hoc signiert, macOS 13.0+ deployment target, Xcode 26.4.1 / macOS 26.4 SDK.
 >
 > Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. Reine Folge-Fixes zu einem gerade veröffentlichten Minor werden als Patch-Bump (z. B. 2.3 → 2.3.1) ausgeliefert, damit das letzte gute Minor klar erkennbar bleibt. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
@@ -289,6 +289,16 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Fix: `ClockTimeSheetController` wird in ein eigenes, titliertes Fenster (`title: "Reopen schedule"`) gepackt (`NSWindow(contentViewController:)`), `NSApp.activate` + `makeKeyAndOrderFront`. Wiederholter Aufruf bringt ein bereits offenes Fenster nach vorne (`clockTimeSheetWindow`). `ClockTimeSheetController` schließt per `view.window?.close()` statt `dismiss(nil)` (letzteres wirkt bei reiner Window-Hosting nicht zuverlässig), implementiert `NSWindowDelegate.windowWillClose` für den roten Schließen-Button (gleiche Semantik wie **Cancel** → `onCancel` + Dropdown-Rebuild), plus `onWindowClosed` zum Nullen der `ViewController`-Referenz.
 - Dateien: `xcode/Test/ViewController.swift`, `xcode/Test/ClockTimeSheetController.swift`, Version 2.6.2 / 16 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`.
 
+### ISSUE-39 · LOW · FEATURE — v2.7.0: Time-Planner-Fenster für alle sechs Slots + gemeinsame Timer-Bearbeitung
+- Kontext: Ab v2.6.0 ist der Reopen-Timer pro Slot konfigurierbar, aber die Einstellungen waren nur über das Zeit-Dropdown im Popover je **aktivem** Slot erreichbar — ein Überblick über alle sechs Slots gleichzeitig fehlte. Der Eintrag **„At specific time…"** öffnete zudem nur den Clock-Time-Editor; der Name passte nicht mehr zur erweiterten Nutzung (Duration + Uhrzeit).
+- Umsetzung:
+  - Neues Fenster **Time planner** (`SessionTimePlannerController`): sechs Zeilen, jeweils Slot-Titel, Statuszeile (`SessionTimerEditing.summary`), `NSPopUpButton` mit Off / 15 / 30 / 60 / 300 Minuten und **Clock time…** (öffnet bestehendes `ClockTimeSheetController`). Beobachtet `Notification.Name.laterSessionTimersChanged` für Live-Refresh.
+  - `SessionTimerEditing.swift`: zentrale `applyOff` / `applyDuration` / `applyClockTime`, `summary(forSlotIndex:)`, `postTimersChangedNotification()` — von Popover-Dropdown und Planner gemeinsam genutzt.
+  - Zahnrad-Menü und Popover-Zeit-Dropdown: Eintrag **Time planner…** (Tag `7713`, konsistent mit Planner-„Clock"-Pfad), öffnet über `AppDelegate.openTimePlanner`. Dropdown-Menüeinträge ohne per-Item-`action` (Fix für `NSPopUpButton`).
+  - Xcode: `SessionTimerEditing.swift` / `SessionTimePlannerController.swift` als `PBXFileReference` ergänzt (vorher nur Build-File + Group — Release-Build konnte die Typen nicht kompilieren).
+- Dateien: `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Later.xcodeproj/project.pbxproj`, Version 2.7.0 / 17 in `Info.plist`, `build-dmg.sh`.
+- Versions-Entscheidung: Minor-Bump (2.6.2 → 2.7.0). Sichtbares Feature (Planner-Fenster + UX-Umbenennung), kein Breaking Change am Slot-/Timer-Datenmodell.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -458,6 +468,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-36 | FEATURE (v2.6.0: per-Slot-Reopen-Timer mit Duration + Clock-Time + Weekday-Recurrence, `ReopenTimerManager` als Single-Source-of-Truth, Fire-Dates persistiert in `UserDefaults[reopen.fireDates]`, SlotButton-Badges, Clock-Time-Sheet) | `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/en.lproj/Main.storyboard`, `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-37 | FIX (v2.6.1 Hotfix: `NSNull` aus `UserDefaults[reopen.fireDates]` raus, `[Double]`-Schema mit `0` als „not armed", Init räumt Legacy-Payloads weg — App startet wieder auf macOS 26) | `xcode/Test/ReopenTimerManager.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-38 | FIX (v2.6.2: Clock-Time-Editor als eigenes Fenster statt `presentAsSheet` im Popover — „At specific time…" sichtbar) | `xcode/Test/ViewController.swift`, `xcode/Test/ClockTimeSheetController.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
+| ISSUE-39 | FEATURE (v2.7.0: Time-Planner-Fenster für alle Slots, `SessionTimerEditing`, Umbenennung „Time planner…", `PBXFileReference`-Fix für neue Swift-Dateien) | `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/Test/Info.plist`, `xcode/build-dmg.sh` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
