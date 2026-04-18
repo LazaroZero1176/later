@@ -3,7 +3,9 @@
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
 > v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.2 (Build 4)**, ad-hoc signiert, macOS 13.0+ deployment target.
+> Aktueller Build (dieses Repo): **v2.2 (Build 6)**, ad-hoc signiert, macOS 13.0+ deployment target.
+>
+> Versionierungs-Konvention: ab v2.2 werden Minor-Bumps (2.2 → 2.3, 2.3 → 2.4) für Feature-/Fix-Releases verwendet. Ein Major-Bump (2.x → 3.0) bleibt Breaking-Changes oder größeren Umbauten vorbehalten. `MARKETING_VERSION` in `project.pbxproj`, `CFBundleShortVersionString` in `Info.plist` und `LATER_VERSION` in `build-dmg.sh` müssen pro Release synchron erhöht werden.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
 
 ---
