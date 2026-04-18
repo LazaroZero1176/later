@@ -1,6 +1,9 @@
 # Xcode derived data & local build artifacts
 xcode/build/
 xcode/.build/
+xcode/DerivedDataDMG/
+xcode/build-dmg-exit.txt
+xcode/build-dmg-out.txt
 *.xcuserstate
 xcuserdata/
 

@@ -32,7 +32,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later.dmg`](./Later.dmg) from this repo.
+1. Download the latest [`Later-2.2.dmg`](./Later-2.2.dmg) from this repo.
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -85,6 +85,8 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 - Popover layout is now fully **content-driven**: the options box, the session section, and the popover height resize themselves to fit the visible content — no empty gaps below the slots, no clipped Save button when a session is stored vs. empty.
 - Custom `SlotButton` rendering (layer-drawn background, accent colour when active, light text) replaces the native `.rounded` bezel that used to render black on the dark options box.
 - Session-setup UI and default profile names are now **English** (`All`, `Work`, `Presentation`, `Coding`, `Entertainment`; "Edit…", "Session settings", "Add app…", "Remove", "Done"). Existing installs that still used the German defaults are migrated to the English names on first launch; custom names are preserved.
+- Code + security review of the v2.2 changes — see [`ISSUES.md`](./ISSUES.md) ISSUE-24 / 25 / 26 and the new "Sicherheits-Review v2.2" section. No new High/Crit findings; three low/medium regressions fixed (register-default locale, migration ordering in `viewDidLoad`, placeholder-toggle leaking into the timer row).
+- DMG artefact renamed to `Later-2.2.dmg`; build script now takes the version from a `LATER_VERSION` variable so bumping it touches one line.
 
 **v2.1** (2026-04-17, this fork)
 - Optional **Dock icon** and **menu bar icon** (persisted in preferences). At least one must stay enabled; otherwise only global shortcuts can open the app (unless shortcuts are disabled in the gear menu).

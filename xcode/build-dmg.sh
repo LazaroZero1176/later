@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Build Release (universal) and create ../Later-2.1.dmg next to this folder (later/Later-2.1.dmg).
+# Build Release (universal) and create ../Later-<version>.dmg next to this folder.
+# Version is controlled by LATER_VERSION below; bump together with Info.plist.
 set -euo pipefail
+
+LATER_VERSION="2.2"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 DERIVED="$ROOT/DerivedDataDMG"
-OUT_DMG="$(cd "$ROOT/.." && pwd)/Later-2.1.dmg"
+OUT_DMG="$(cd "$ROOT/.." && pwd)/Later-${LATER_VERSION}.dmg"
 
 echo "==> Building Later (Release, universal)…"
 rm -rf "$DERIVED"
