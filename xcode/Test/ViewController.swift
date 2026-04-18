@@ -6,7 +6,7 @@
 //
 
 import Cocoa
-import SwiftUI
+import CoreGraphics
 import LaunchAtLogin
 import HotKey
 @preconcurrency import ScreenCaptureKit
@@ -55,6 +55,12 @@ class ViewController: NSViewController {
     @IBOutlet weak var boxHeight: NSLayoutConstraint!
     @IBOutlet weak var topBoxSpacing: NSLayoutConstraint!
     @IBOutlet weak var containerHeight: NSLayoutConstraint!
+    @IBOutlet weak var optionsBox: NSBox!
+    @IBOutlet weak var saveBelowOptionsConstraint: NSLayoutConstraint!
+
+    private var excludeSetupStack: NSStackView?
+    private let excludeSetupPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
+    private weak var excludeSetupEditorWindow: NSWindow?
 
     let defaults = UserDefaults.standard
 
@@ -126,6 +132,10 @@ class ViewController: NSViewController {
         fixStyles()
         setUpMenu()
         observeModel()
+
+        ExcludeSetupStore.migrateIfNeeded()
+        buildExcludeSetupRowIfNeeded()
+        syncExcludeSetupPopUp()
     }
 
     private func presentBothOffAlert() {
@@ -238,6 +248,9 @@ class ViewController: NSViewController {
         guard app.activationPolicy == .regular else { return false }
         if isSelf(app) { return false }
         if ignoreFinder.state == .on && isSystemApp(app) { return false }
+        let mode = ExcludeSetupStore.currentMode()
+        let excluded = ExcludeSetupStore.excludedBundleIDs(for: mode)
+        if let bid = app.bundleIdentifier, excluded.contains(bid) { return false }
         return true
     }
 
@@ -285,7 +298,7 @@ class ViewController: NSViewController {
         self.settingsMenu.addItem(NSMenuItem.separator())
         // Lowercase "q" so Cmd+Q works without Shift (ISSUE-13).
         self.settingsMenu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        settingsMenu.appearance = NSAppearance.current
+        settingsMenu.appearance = NSAppearance.currentDrawing()
     }
 
     // MARK: - Screenshot storage
@@ -321,7 +334,19 @@ class ViewController: NSViewController {
     /// Take a small preview screenshot. Uses ScreenCaptureKit on macOS 14+,
     /// falls back to legacy CGWindowListCreateImage otherwise (ISSUE-02).
     /// Silently no-ops on failure; the preview is non-essential.
+    ///
+    /// Always resolves Screen Recording permission via `CGPreflight` / `CGRequest`
+    /// **before** calling ScreenCaptureKit. Hitting `SCShareableContent` without
+    /// permission can make macOS show the “Screen Recording” dialog on every save.
     func takeScreenshot() {
+        if #available(macOS 10.15, *) {
+            if !CGPreflightScreenCaptureAccess() {
+                guard CGRequestScreenCaptureAccess() else {
+                    NSLog("Later: screenshot skipped — Screen Recording not granted (System Settings → Privacy & Security → Screen Recording)")
+                    return
+                }
+            }
+        }
         if #available(macOS 14.0, *) {
             Task.detached(priority: .userInitiated) {
                 await Self.captureViaScreenCaptureKit()
@@ -333,6 +358,7 @@ class ViewController: NSViewController {
 
     @available(macOS 14.0, *)
     private static func captureViaScreenCaptureKit() async {
+        guard CGPreflightScreenCaptureAccess() else { return }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             guard let display = content.displays.first else { return }
@@ -408,12 +434,14 @@ class ViewController: NSViewController {
             }
         }
 
-        timeDropdown.appearance = NSAppearance.current
+        timeDropdown.appearance = NSAppearance.currentDrawing()
 
         if let t = cancelTime.attributedTitle.mutableCopy() as? NSMutableAttributedString {
             t.addAttribute(.foregroundColor, value: #colorLiteral(red: 0.155318439, green: 0.5206356049, blue: 1, alpha: 1), range: NSRange(location: 0, length: t.length))
             cancelTime.attributedTitle = t
         }
+
+        applyExcludeSetupRowStyle()
     }
 
     // MARK: - IBActions
@@ -441,6 +469,10 @@ class ViewController: NSViewController {
     @IBAction func click(_ sender: Any) {
         saveSessionGlobal()
         button.isEnabled = false
+    }
+
+    @IBAction func imageClick(_ sender: Any) {
+        restoreSessionGlobal()
     }
 
     @IBAction func restoreSession(_ sender: Any) {
@@ -652,7 +684,7 @@ class ViewController: NSViewController {
         defaults.set(false, forKey: Keys.session)
         boxHeight.constant = 0
         topBoxSpacing.constant = 0
-        containerHeight.constant = 290
+        containerHeight.constant = 466
         currentView.needsLayout = true
         currentView.updateConstraints()
         fixStyles()
@@ -691,9 +723,119 @@ class ViewController: NSViewController {
         fixStyles()
         setScreenshot()
         topBoxSpacing.constant = 16
-        containerHeight.constant = 520
+        containerHeight.constant = 686
         currentView.needsLayout = true
         currentView.updateConstraints()
         checkAnyWindows()
+    }
+
+    // MARK: - Exclude setups (session presets)
+
+    private func buildExcludeSetupRowIfNeeded() {
+        guard excludeSetupStack == nil else { return }
+
+        let label = NSTextField(labelWithString: "Session-Setup:")
+        label.font = NSFont.systemFont(ofSize: 13)
+        label.alignment = .right
+
+        excludeSetupPopUp.target = self
+        excludeSetupPopUp.action = #selector(excludeSetupModeChanged(_:))
+
+        let edit = NSButton(title: "Bearbeiten…", target: self, action: #selector(openExcludeSetupEditor))
+        edit.bezelStyle = .rounded
+
+        let row = NSStackView(views: [label, excludeSetupPopUp, edit])
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.alignment = .centerY
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.distribution = .fill
+        label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        excludeSetupPopUp.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        currentView.addSubview(row)
+        excludeSetupStack = row
+
+        saveBelowOptionsConstraint.isActive = false
+
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: optionsBox.bottomAnchor, constant: 8),
+            row.leadingAnchor.constraint(equalTo: currentView.leadingAnchor, constant: 20),
+            row.trailingAnchor.constraint(lessThanOrEqualTo: currentView.trailingAnchor, constant: -20),
+            button.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 8)
+        ])
+
+        applyExcludeSetupRowStyle()
+    }
+
+    /// Popover background is dark but AppDelegate forces `.aqua`; without this, labels read as dark-on-dark.
+    private func applyExcludeSetupRowStyle() {
+        guard let row = excludeSetupStack else { return }
+        row.appearance = NSAppearance(named: .darkAqua)
+        for v in row.arrangedSubviews {
+            if let tf = v as? NSTextField {
+                tf.textColor = NSColor(white: 0.92, alpha: 1)
+            } else if let pop = v as? NSPopUpButton {
+                pop.appearance = NSAppearance(named: .darkAqua)
+                let fg = NSColor(white: 0.92, alpha: 1)
+                let display = pop.title
+                if !display.isEmpty {
+                    pop.attributedTitle = NSAttributedString(string: display, attributes: [.foregroundColor: fg])
+                }
+            } else if let btn = v as? NSButton {
+                btn.contentTintColor = NSColor(white: 0.88, alpha: 1)
+            }
+        }
+    }
+
+    private func syncExcludeSetupPopUp() {
+        excludeSetupPopUp.removeAllItems()
+        excludeSetupPopUp.addItem(withTitle: "Alles")
+        let names = ExcludeSetupStore.loadDisplayNames()
+        for n in names {
+            excludeSetupPopUp.addItem(withTitle: n)
+        }
+        switch ExcludeSetupStore.currentMode() {
+        case .all:
+            excludeSetupPopUp.selectItem(at: 0)
+        case .slot(let i):
+            let idx = i + 1
+            if idx < excludeSetupPopUp.numberOfItems {
+                excludeSetupPopUp.selectItem(at: idx)
+            } else {
+                excludeSetupPopUp.selectItem(at: 0)
+            }
+        }
+        applyExcludeSetupRowStyle()
+    }
+
+    @objc private func excludeSetupModeChanged(_ sender: NSPopUpButton) {
+        let idx = sender.indexOfSelectedItem
+        if idx == 0 {
+            ExcludeSetupStore.setCurrentMode(.all)
+        } else if idx >= 1, idx <= ExcludeSetupStore.slotCount {
+            ExcludeSetupStore.setCurrentMode(.slot(idx - 1))
+        }
+        checkAnyWindows()
+    }
+
+    @objc private func openExcludeSetupEditor() {
+        if let existing = excludeSetupEditorWindow, existing.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            existing.makeKeyAndOrderFront(nil)
+            return
+        }
+        let editor = ExcludeSetupEditorController()
+        editor.onFinished = { [weak self] in
+            self?.syncExcludeSetupPopUp()
+        }
+        let win = NSWindow(contentViewController: editor)
+        win.title = "Session-Setups"
+        win.styleMask = [.titled, .closable, .miniaturizable]
+        win.setContentSize(NSSize(width: 460, height: 400))
+        win.center()
+        excludeSetupEditorWindow = win
+        NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(nil)
     }
 }

@@ -687,9 +687,9 @@
             <objects>
                 <viewController storyboardIdentifier="ViewController1" id="XfG-lQ-9wD" customClass="ViewController" customModule="Later" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" wantsLayer="YES" translatesAutoresizingMaskIntoConstraints="NO" id="m2S-Jp-Qdl">
-                        <rect key="frame" x="0.0" y="0.0" width="315" height="460"/>
+                        <rect key="frame" x="0.0" y="0.0" width="315" height="686"/>
                         <subviews>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" id="FII-be-5xU">
+                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="FII-be-5xU">
                                 <rect key="frame" x="18" y="424" width="45" height="20"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" title="Later" id="0im-9l-Wrj">
@@ -698,10 +698,10 @@
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
                                 </textFieldCell>
                             </textField>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" id="c67-bl-sOy">
+                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" ambiguous="YES" translatesAutoresizingMaskIntoConstraints="NO" id="c67-bl-sOy">
                                 <rect key="frame" x="67" y="422" width="51" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" lineBreakMode="clipping" title="v2.1" id="CBi-aV-oCf">
+                                <textFieldCell key="cell" lineBreakMode="clipping" title="v2.0" id="CBi-aV-oCf">
                                     <font key="font" size="11" name="Inter-Medium"/>
                                     <color key="textColor" red="0.635276854" green="0.62737250330000005" blue="0.63137388230000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -851,24 +851,10 @@
                                 </constraints>
                                 <color key="fillColor" red="0.18431678409999999" green="0.1843082905" blue="0.18431404230000001" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                             </box>
-                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aIn-AB-xTn">
-                                <rect key="frame" x="263" y="428" width="32" height="16"/>
-                                <constraints>
-                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="16" id="AlG-qq-1WB"/>
-                                    <constraint firstAttribute="height" constant="16" id="iiv-AQ-sIF"/>
-                                </constraints>
-                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="settingsthing" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="8bV-8h-6gs">
-                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                    <font key="font" metaFont="system"/>
-                                </buttonCell>
-                                <connections>
-                                    <action selector="settings:" target="XfG-lQ-9wD" id="uRM-Ml-BzH"/>
-                                </connections>
-                            </button>
                             <box boxType="custom" borderWidth="0.0" cornerRadius="10" titlePosition="noTitle" translatesAutoresizingMaskIntoConstraints="NO" id="9VD-Ls-6F0">
-                                <rect key="frame" x="20" y="21" width="275" height="168"/>
+                                <rect key="frame" x="20" y="21" width="275" height="300"/>
                                 <view key="contentView" id="gWt-uN-tNY">
-                                    <rect key="frame" x="0.0" y="0.0" width="275" height="168"/>
+                                    <rect key="frame" x="0.0" y="0.0" width="275" height="300"/>
                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                     <subviews>
                                         <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="zNJ-qa-QYC">
@@ -972,11 +958,25 @@
                                     </constraints>
                                 </view>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="168" id="veR-wK-tl8"/>
+                                    <constraint firstAttribute="height" constant="300" id="veR-wK-tl8"/>
                                 </constraints>
                                 <color key="fillColor" red="0.18431678409999999" green="0.1843082905" blue="0.18431404230000001" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
                             </box>
-                            <button verticalHuggingPriority="750" ambiguous="YES" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="UIT-zh-yWS">
+                            <button verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="aIn-AB-xTn">
+                                <rect key="frame" x="263" y="428" width="32" height="16"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="16" id="AlG-qq-1WB"/>
+                                    <constraint firstAttribute="height" constant="16" id="iiv-AQ-sIF"/>
+                                </constraints>
+                                <buttonCell key="cell" type="smallSquare" bezelStyle="smallSquare" image="settingsthing" imagePosition="overlaps" alignment="center" lineBreakMode="truncatingTail" state="on" imageScaling="proportionallyUpOrDown" inset="2" id="8bV-8h-6gs">
+                                    <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                                    <font key="font" metaFont="system"/>
+                                </buttonCell>
+                                <connections>
+                                    <action selector="settings:" target="XfG-lQ-9wD" id="uRM-Ml-BzH"/>
+                                </connections>
+                            </button>
+                            <button verticalHuggingPriority="750" imageHugsTitle="YES" translatesAutoresizingMaskIntoConstraints="NO" id="UIT-zh-yWS">
                                 <rect key="frame" x="20" y="-35" width="275" height="40"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="40" id="eCg-Qf-TcR"/>
@@ -997,14 +997,15 @@
                             <constraint firstItem="MPy-SW-b88" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="Psr-Pc-wxN"/>
                             <constraint firstItem="c67-bl-sOy" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="21" id="RHM-P0-gZa"/>
                             <constraint firstItem="aIn-AB-xTn" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="16" id="VBZ-jd-369"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="top" secondItem="MPy-SW-b88" secondAttribute="bottom" constant="16" id="oSw-n8-zkV"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="ww5-xV-tol"/>
+                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="xLU-zX-I1A"/>
                             <constraint firstItem="UIT-zh-yWS" firstAttribute="top" secondItem="gWt-uN-tNY" secondAttribute="bottom" constant="16" id="b2n-BP-6mx"/>
+                            <constraint firstItem="UIT-zh-yWS" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="Sav-Ctr-X"/>
                             <constraint firstAttribute="trailing" secondItem="aIn-AB-xTn" secondAttribute="trailing" constant="20" symbolic="YES" id="dsc-lQ-ww3"/>
                             <constraint firstItem="FII-be-5xU" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="eI0-6T-gMQ"/>
                             <constraint firstItem="FII-be-5xU" firstAttribute="top" secondItem="m2S-Jp-Qdl" secondAttribute="top" constant="16" id="hKN-te-2Ee"/>
-                            <constraint firstAttribute="height" constant="460" id="n7C-fM-XAs"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="top" secondItem="TVy-UI-S31" secondAttribute="bottom" constant="16" id="oSw-n8-zkV"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="leading" secondItem="m2S-Jp-Qdl" secondAttribute="leading" constant="20" symbolic="YES" id="ww5-xV-tol"/>
-                            <constraint firstItem="9VD-Ls-6F0" firstAttribute="centerX" secondItem="m2S-Jp-Qdl" secondAttribute="centerX" id="xLU-zX-I1A"/>
+                            <constraint firstAttribute="height" constant="686" id="n7C-fM-XAs"/>
                         </constraints>
                     </view>
                     <connections>
@@ -1012,23 +1013,25 @@
                         <outlet property="boxHeight" destination="zj6-PG-0D4" id="fGM-NQ-w5x"/>
                         <outlet property="button" destination="UIT-zh-yWS" id="C38-9S-C4Y"/>
                         <outlet property="cancelTime" destination="fbV-J9-mwv" id="5hv-Q3-3R8"/>
-                        <outlet property="checkbox" destination="zNJ-qa-QYC" id="7Jz-FC-STl"/>
-                        <outlet property="closeApps" destination="tpg-xD-tkr" id="YIw-D8-CpS"/>
                         <outlet property="containerHeight" destination="n7C-fM-XAs" id="UDb-Rc-hG7"/>
                         <outlet property="currentView" destination="m2S-Jp-Qdl" id="huC-eZ-fM2"/>
                         <outlet property="dateLabel" destination="ddP-4r-CaK" id="nYt-Ez-SRF"/>
-                        <outlet property="ignoreFinder" destination="NKU-ec-WPV" id="run-Lr-QXF"/>
-                        <outlet property="keepWindowsOpen" destination="J5F-VR-jIh" id="ox0-hA-3Gg"/>
                         <outlet property="numberOfSessions" destination="ALa-ZI-AcJ" id="JfT-bw-7rS"/>
                         <outlet property="preview" destination="78s-ry-Re3" id="Udd-Qh-19w"/>
                         <outlet property="restore" destination="fW9-82-QiZ" id="W80-I5-4ff"/>
                         <outlet property="sessionLabel" destination="qaa-xl-mdH" id="Iw3-uK-Xkj"/>
-                        <outlet property="timeDropdown" destination="bCC-yr-2Yi" id="l7r-Nw-0yg"/>
                         <outlet property="timeLabel" destination="Uwn-zg-Adg" id="jVn-7X-XFq"/>
                         <outlet property="timeWrapper" destination="kKn-xA-ifK" id="6ZD-er-pt5"/>
                         <outlet property="timeWrapperHeight" destination="TCE-oF-fPp" id="tMe-ZS-1c8"/>
                         <outlet property="topBoxSpacing" destination="oSw-n8-zkV" id="wmQ-TL-VVK"/>
+                        <outlet property="checkbox" destination="zNJ-qa-QYC" id="7Jz-FC-STl"/>
+                        <outlet property="closeApps" destination="tpg-xD-tkr" id="YIw-D8-CpS"/>
+                        <outlet property="ignoreFinder" destination="NKU-ec-WPV" id="run-Lr-QXF"/>
+                        <outlet property="keepWindowsOpen" destination="J5F-VR-jIh" id="ox0-hA-3Gg"/>
+                        <outlet property="timeDropdown" destination="bCC-yr-2Yi" id="l7r-Nw-0yg"/>
                         <outlet property="waitCheckbox" destination="tUo-Sf-aim" id="hme-KO-kwG"/>
+                        <outlet property="optionsBox" destination="9VD-Ls-6F0" id="XS8-op-Box"/>
+                        <outlet property="saveBelowOptionsConstraint" destination="b2n-BP-6mx" id="XS8-sv-Cstr"/>
                     </connections>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>

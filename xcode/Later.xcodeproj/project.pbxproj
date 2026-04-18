@@ -24,12 +24,16 @@
 		ECF31AE827BC4DF200994D3C /* ViewController2.xib in Resources */ = {isa = PBXBuildFile; fileRef = ECF31AE627BC4DF200994D3C /* ViewController2.xib */; };
 		ECF6532627A5A2E2001EFA5D /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = ECF6532527A5A2E2001EFA5D /* LaunchAtLogin */; };
 		ECF6532A27A6F9EA001EFA5D /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = ECF6532927A6F9EA001EFA5D /* HotKey */; };
+		E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234501 /* ExcludeSetupStore.swift */; };
+		E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		EC37623F279C641D003144C7 /* Later.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Later.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC376242279C641D003144C7 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		EC376244279C641D003144C7 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234501 /* ExcludeSetupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupStore.swift; sourceTree = "<group>"; };
+		E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcludeSetupEditorController.swift; sourceTree = "<group>"; };
 		EC376246279C641E003144C7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Test/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		EC37624B279C641E003144C7 /* Test.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Test.entitlements; sourceTree = "<group>"; };
 		EC376251279C66F4003144C7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -92,6 +96,8 @@
 				EC376251279C66F4003144C7 /* Info.plist */,
 				EC376242279C641D003144C7 /* AppDelegate.swift */,
 				EC376244279C641D003144C7 /* ViewController.swift */,
+				E4C11A012345678901234501 /* ExcludeSetupStore.swift */,
+				E4C11A012345678901234503 /* ExcludeSetupEditorController.swift */,
 				ECF31AE627BC4DF200994D3C /* ViewController2.xib */,
 				EC376246279C641E003144C7 /* Assets.xcassets */,
 				EC376248279C641E003144C7 /* Main.storyboard */,
@@ -206,6 +212,8 @@
 			files = (
 				EC376258279EF896003144C7 /* EventMonitor.swift in Sources */,
 				EC376245279C641D003144C7 /* ViewController.swift in Sources */,
+				E4C11A012345678901234502 /* ExcludeSetupStore.swift in Sources */,
+				E4C11A012345678901234504 /* ExcludeSetupEditorController.swift in Sources */,
 				EC376243279C641D003144C7 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -365,8 +373,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
-				CURRENT_PROJECT_VERSION = 3;
+				MARKETING_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 1;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -400,8 +408,8 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
-				CURRENT_PROJECT_VERSION = 3;
+				MARKETING_VERSION = 2.0;
+				CURRENT_PROJECT_VERSION = 1;
 				PRODUCT_BUNDLE_IDENTIFIER = alyssaxuu.Later;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

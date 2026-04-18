@@ -6,7 +6,6 @@
 //
 
 import Cocoa
-import SwiftUI
 
 
 @main
@@ -83,7 +82,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "waitCheckbox": false,
             "switchKey": false,
             "showDockIcon": true,
-            "showMenuBarIcon": true
+            "showMenuBarIcon": true,
+            "excludeSetup.displayNames": ["Arbeit", "Präsentation", "Coding", "Unterhaltung"],
+            "excludeSetup.mode": "all"
         ])
 
         NotificationCenter.default.addObserver(
