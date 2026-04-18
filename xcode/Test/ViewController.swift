@@ -151,7 +151,11 @@ class ViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        // Run all storage migrations *before* we start reading values back:
+        // `refreshUIForActiveSlot()` below calls `syncExcludeSetupPopUp()`
+        // which expects up-to-date display names and per-slot modes.
         SessionSlotStore.migrateIfNeeded()
+        ExcludeSetupStore.migrateIfNeeded()
 
         checkbox.state = LaunchAtLogin.isEnabled ? .on : .off
         closeApps.state = defaults.bool(forKey: "closeApps") ? .on : .off
@@ -177,7 +181,6 @@ class ViewController: NSViewController {
         setUpMenu()
         observeModel()
 
-        ExcludeSetupStore.migrateIfNeeded()
         syncExcludeSetupPopUp()
     }
 
@@ -819,13 +822,20 @@ class ViewController: NSViewController {
     }
 
     /// Shows the "no session" placeholder and hides every other subview of the
-    /// session preview box (preview image, labels, buttons, timer row). Or the
-    /// reverse when `showPlaceholder` is `false`.
+    /// session preview box (preview image, labels, buttons). Or the reverse
+    /// when `showPlaceholder` is `false`.
+    ///
+    /// The timer row (`timeWrapper`) is intentionally left alone — its own
+    /// `showTimer()` / `hideTimer()` pair owns visibility and constraint height.
+    /// Otherwise toggling the placeholder would briefly reveal a zero-height
+    /// timer or collapse an active timer row.
     private func setSessionBoxPlaceholderVisible(_ showPlaceholder: Bool) {
         guard let content = box.contentView else { return }
         for sub in content.subviews {
             if sub === noSessionLabel {
                 sub.isHidden = !showPlaceholder
+            } else if sub === timeWrapper {
+                continue
             } else {
                 sub.isHidden = showPlaceholder
             }

@@ -83,7 +83,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "switchKey": false,
             "showDockIcon": true,
             "showMenuBarIcon": true,
-            "excludeSetup.displayNames": ["Arbeit", "Präsentation", "Coding", "Unterhaltung"],
+            // Keep these in sync with `ExcludeSetupStore.defaultDisplayNames` and
+            // `ExcludeSetupMode.all.rawValue`. `ExcludeSetupStore.migrateIfNeeded()`
+            // is the single source of truth for first-launch seeding and
+            // German→English locale migration; this register call only ensures
+            // safe values exist before that migration runs.
+            "excludeSetup.displayNames": ["Work", "Presentation", "Coding", "Entertainment"],
             "excludeSetup.mode": "all"
         ])
 

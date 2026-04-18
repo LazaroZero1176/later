@@ -1,8 +1,9 @@
 # Later — Issue Tracker
 
 > Audit ausgeführt am 2026-04-17 auf macOS 26.5 (Tahoe, Build 25F5053d).
+> v2.2-Audit ausgeführt am 2026-04-18 auf demselben System, Fokus: neue Slot- und Setup-Stores.
 > Basisversion: `alyssaxuu/later` @ `master` — Original-Binary: `Later.dmg` v1.91 (BuildMachineOSBuild 21F79, SDK macosx12.3).
-> Aktueller Build (dieses Repo): **v2.1 (Build 3)**, ad-hoc signiert, macOS 13.0+ deployment target.
+> Aktueller Build (dieses Repo): **v2.2 (Build 4)**, ad-hoc signiert, macOS 13.0+ deployment target.
 > Test-Binary ist ad-hoc signiert (kein Developer-Team), `spctl -a -vv` meldet `rejected` → Nutzer muss Quarantäne-Attribut entfernen (siehe ISSUE-01).
 
 ---
@@ -182,6 +183,24 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
   - Nutzer von Bartender/Barbee/Hidden Bar: „Later" dort einmalig auf „Show"/„Always Visible" setzen.
   - Unabhängig davon bleibt die App immer über den Dock-Icon erreichbar.
 
+### ISSUE-24 · MED · FIX — v2.2: Deutsche Default-Namen in `AppDelegate.register(defaults:)`
+- Beweis: `AppDelegate.applicationDidFinishLaunching` registrierte `"excludeSetup.displayNames": ["Arbeit", "Präsentation", "Coding", "Unterhaltung"]`.
+- Impact: Inkonsistenz zur neuen Locale-Migration in `ExcludeSetupStore.migrateIfNeeded()` (englische Defaults). Wenn die Migrations-Flag `excludeSetup.localeMigratedToEnglish` je gelöscht / zurückgesetzt wird (z. B. Backup-Restore eines alten Profils), fallen Nutzer still auf deutsche Setup-Namen zurück, obwohl die restliche UI auf Englisch umgestellt ist.
+- Fix: Register-Default auf `["Work", "Presentation", "Coding", "Entertainment"]` umgestellt; `ExcludeSetupStore.migrateIfNeeded()` bleibt Single-Source-of-Truth für die eigentliche Seeding- und Migrations-Logik.
+- Datei: `xcode/Test/AppDelegate.swift`.
+
+### ISSUE-25 · LOW · FIX — v2.2: `ExcludeSetupStore.migrateIfNeeded()` lief nach erstem UI-Refresh
+- Beweis: `ViewController.viewDidLoad` rief `refreshUIForActiveSlot()` (und damit `syncExcludeSetupPopUp()`) vor `ExcludeSetupStore.migrateIfNeeded()` auf.
+- Impact: Der erste Popover-Layout-Pass las die Setup-Daten, bevor die Store-Migration den Bundle-List-Blob / `keyMode` geseedet hatte. Funktional harmlos dank Fallbacks in `loadDisplayNames()`/`currentMode()`, aber die Aufrufreihenfolge widerspricht der Store-API und könnte beim Anbauen weiterer Migrationsschritte zu echten Bugs führen.
+- Fix: Beide Migrationen (`SessionSlotStore.migrateIfNeeded()` + `ExcludeSetupStore.migrateIfNeeded()`) laufen jetzt ganz am Anfang von `viewDidLoad`; `syncExcludeSetupPopUp()` wird nur noch einmal aufgerufen (statt vorher implizit plus explizit).
+- Datei: `xcode/Test/ViewController.swift`.
+
+### ISSUE-26 · LOW · FIX — v2.2: Placeholder-Toggle machte `timeWrapper` zwangssichtbar
+- Beweis: `setSessionBoxPlaceholderVisible(false)` iterierte über **alle** Subviews von `box.contentView` und setzte `isHidden = false`, auch für `timeWrapper`. Der Timer-Zustand wird aber durch `hideTimer()`/`showTimer()` verwaltet (Höhen-Constraint + `isHidden`).
+- Impact: Beim Wechsel von einem leeren auf einen gefüllten Slot wurde `timeWrapper` kurz sichtbar, bevor der Timer-Branch ihn ggf. wieder versteckte — ein potentieller Layout-Flicker, und brittle gegenüber Reihenfolge-Änderungen.
+- Fix: `timeWrapper` wird vom generischen Placeholder-Toggle ausgespart; Sichtbarkeit und Höhe bleiben allein bei `showTimer()`/`hideTimer()`.
+- Datei: `xcode/Test/ViewController.swift`.
+
 ### ISSUE-30 · MED · FIX — v2.1: Dock- und Menüleisten-Sichtbarkeit + Popover-Fallback
 - Anforderung: Nutzer soll **Dock-Icon** und **Menüleisten-Icon** unabhängig ein-/ausschalten können (`UserDefaults`: `showDockIcon`, `showMenuBarIcon`; Standard jeweils an). Mindestens eines muss aktiv bleiben, sonst nur noch globaler Hotkey (Hinweisdialog).
 - Umsetzung:
@@ -208,6 +227,20 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - SEC-02 → siehe ISSUE-16 (Entitlement entfernen).
 - SEC-04 → Screenshot nach `Application Support/Later/` umziehen, `FileManager` mit `withIntermediateDirectories`.
 - SEC-05 → Bundle-Identifier + Bundle-URL statt Executable-URL speichern, beim Restore via `NSWorkspace` auflösen (ISSUE-11 kombiniert den Fix).
+
+### Sicherheits-Review v2.2 (neue Stores)
+
+Die v2.2-Änderungen wurden separat auf Angriffsflächen geprüft. Stand: keine neuen High/Crit-Findings.
+
+| Komponente | Review | Ergebnis |
+|---|---|---|
+| `SessionSlotStore.Slot` (Codable, 6 JSON-Blobs in `UserDefaults`) | Beim Decode wird die Array-Länge gegen `slotCount` validiert; Einzelinhalte sind reine Metadata (Datum, Anzeigename, Bundle-IDs, Legacy-URL-Strings). | OK — Exekution läuft weiterhin ausschließlich über `NSWorkspace.openApplication(at:)` mit `.app`-Filter, SEC-05 bleibt gefixt. |
+| `ExcludeSetupMode.init?(rawValue:)` | Validiert Slot-Index gegen `ExcludeSetupStore.slotCount` (0..<4). | OK — manipulierte Plist-Werte fallen auf `.all`. |
+| `ExcludeSetupStore.mode(forSessionSlot:)` / Per-Slot-Persistenz | String-Array mit fester Länge (`SessionSlotStore.slotCount`). Bei Längen-Mismatch wird reseeded. | OK. |
+| `SessionSlotStore.screenshotFileName(for:)` | Dateiname wird aus einem intern kontrollierten `Int` (0..<6) gebildet. Kein User-Input. | OK — kein Pfad-Traversal. |
+| `SessionSlotStore.migrateIfNeeded()` legacy-Screenshot-Move | Quelle/Ziel liegen beide unter `Application Support/<bundleID>/`, `moveItem` nur wenn Quelle existiert und Ziel fehlt. | OK. |
+
+Keine neuen SEC-Einträge notwendig. Bestehende Einträge SEC-04/05 gelten fortgeführt für die Multi-Slot-Daten.
 
 ---
 
@@ -252,6 +285,9 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-21 | FIX (Index-Guarding beim Restore) | `xcode/Test/ViewController.swift` |
 | ISSUE-22 | FIX (`MACOSX_DEPLOYMENT_TARGET = 13.0`) | `xcode/Later.xcodeproj/project.pbxproj` |
 | ISSUE-23 | FIX (lazy StatusItem, Accessory→Regular-Flip, 18×18 Icon-Resize, Dock-Klick öffnet Popover) | `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist` |
+| ISSUE-24 | FIX (v2.2: englische Register-Defaults für `excludeSetup.displayNames`) | `xcode/Test/AppDelegate.swift` |
+| ISSUE-25 | FIX (v2.2: Store-Migrationen vor erstem UI-Refresh) | `xcode/Test/ViewController.swift` |
+| ISSUE-26 | FIX (v2.2: Placeholder-Toggle lässt `timeWrapper` in Ruhe) | `xcode/Test/ViewController.swift` |
 | ISSUE-30 | FIX (v2.1: Dock/Menüleiste per Zahnrad, `applyAppearanceSettings`, Popover-Fallback-Anker) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift` |
 | SEC-01 | FIX (Tag-Pinning beider Deps) | siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
