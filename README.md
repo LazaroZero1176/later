@@ -33,7 +33,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the latest [`Later-2.7.5.dmg`](./Later-2.7.5.dmg) from this repo.
+1. Download the DMG from **[GitHub Releases (latest)](https://github.com/LazaroZero1176/later/releases/latest)** — open the current release and download the attached **`Later-*.dmg`** (official asset with release notes and download statistics). *Prefer this over a raw file link in the repository root.*
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
@@ -82,7 +82,7 @@ This repo builds a **universal Release** `.app` and a **`Later-<version>.dmg`** 
 | Workflow | When | Result |
 |----------|------|--------|
 | **Build DMG** | Push or PR to `master` (only if `xcode/**` or workflow files change), or **Run workflow** manually | [Actions → Artifacts](https://github.com/LazaroZero1176/later/actions): download `Later-dmg-<sha>` (contains `Later-*.dmg`). Retention 60 days. |
-| **Release DMG** | Push a **tag** matching `v*` (e.g. `v2.7.6`) | Creates a [GitHub Release](https://github.com/LazaroZero1176/later/releases) and attaches the DMG. **Before tagging**, bump `LATER_VERSION` in `xcode/build-dmg.sh` and align `Info.plist` / `project.pbxproj` with your usual release process. |
+| **Release DMG** | Push a **tag** matching `v*` (e.g. `v2.7.6`) | Creates a release under [Releases](https://github.com/LazaroZero1176/later/releases/latest) and attaches the DMG. **Before tagging**, bump `LATER_VERSION` in `xcode/build-dmg.sh` and align `Info.plist` / `project.pbxproj` with your usual release process. |
 
 Forks: replace `LazaroZero1176/later` in the links with your repo if different.
 
@@ -92,7 +92,7 @@ Forks: replace `LazaroZero1176/later` in the links with your repo if different.
 - **Popover version label** next to the title now shows the real **marketing version and build** from `Info.plist` (e.g. `v2.7.5 (22)`), replacing a stale hardcoded storyboard string.
 - **Documentation:** [`ISSUES.md`](./ISSUES.md) — **SEC-01** clarified for this fork (SwiftPM **version** pins in `Package.resolved`); **v2.6.0** security-review text corrected for **v2.6.1+** `reopen.fireDates` storage (`[Double]`). See ISSUE-44.
 - **CI:** [GitHub Actions](#ci-github-actions) builds a DMG on each relevant push/PR and can attach a DMG to a **Release** when you push a `v*` tag. See ISSUE-45.
-- DMG: `Later-2.7.5.dmg`.
+- DMG: **[Releases → latest](https://github.com/LazaroZero1176/later/releases/latest)** — asset `Later-2.7.5.dmg`.
 
 **v2.7.4** (2026-04-18, this fork)
 - **Time planner layout.** Slot cards use a **two-column × three-row** grid (720 pt wide window) instead of a single tall column. Shorter section titles (**Restore**, **Scheduled save**) with tooltips, tighter spacing, and a briefer intro line. See [`ISSUES.md`](./ISSUES.md) ISSUE-43.

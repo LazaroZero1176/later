@@ -1,0 +1,5 @@
+Update — official downloads now use GitHub Releases (release notes + download stats):
+
+https://github.com/LazaroZero1176/later/releases/latest
+
+Fork / source: https://github.com/LazaroZero1176/later — grab the DMG from the latest release page above.
