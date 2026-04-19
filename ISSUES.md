@@ -525,7 +525,7 @@ Stand des aktuellen Commits in diesem Repo:
 | SEC-05 | FIX (Restore via Bundle-ID + `NSWorkspace`, `Process()` entfällt) | `xcode/Test/ViewController.swift` |
 | SEC-06 | DOC (siehe ISSUE-01, Build-Anleitung) | — |
 
-Die alte, im Repo enthaltene `Later.dmg` bleibt unverändert — sie ist nicht neu zu bauen ohne Xcode und ohne Apple-Developer-ID-Signatur. Für den funktionstüchtigen Binary muss der Workflow unter „Build-Anleitung" einmalig durchlaufen werden.
+Historische upstream-`Later.dmg` (v1.91) ist nicht mehr im Repo-Root; **Downloads** für dieses Fork erfolgen über **[GitHub Releases](https://github.com/LazaroZero1176/later/releases/latest)**. Eigener Build: Workflow unter „Build-Anleitung" bzw. `xcode/build-dmg.sh`; Apple-Developer-ID nur für Notarisierung nötig.
 
 ## Bekannte offene Punkte / Nacharbeit
 

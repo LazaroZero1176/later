@@ -1,6 +1,6 @@
 # Later
 
-
+[![Build DMG](https://github.com/LazaroZero1176/later/actions/workflows/build-dmg.yml/badge.svg)](https://github.com/LazaroZero1176/later/actions/workflows/build-dmg.yml)
 
 https://user-images.githubusercontent.com/7581348/176900722-6ceb1fb7-b235-4a6a-991c-6273edc31b30.mp4
 
@@ -33,7 +33,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
-1. Download the DMG from **[GitHub Releases (latest)](https://github.com/LazaroZero1176/later/releases/latest)** — open the current release and download the attached **`Later-*.dmg`** (official asset with release notes and download statistics). *Prefer this over a raw file link in the repository root.*
+1. Download the DMG from **[GitHub Releases (latest)](https://github.com/LazaroZero1176/later/releases/latest)** — open the current release and download the attached **`Later-*.dmg`**. *(Do not use the old raw repo link `…/blob/master/Later-2.7.5.dmg`; Releases are the official download path with statistics.)*
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
 3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
