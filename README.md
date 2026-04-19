@@ -23,6 +23,7 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 - [Installing Later](#installing-later)
 - [Troubleshooting](#troubleshooting)
 - [Source code](#source-code)
+- [CI (GitHub Actions)](#ci-github-actions)
 
 ## Features
 
@@ -74,11 +75,23 @@ You can open Later in Xcode if you'd like to make changes or develop it further.
 4. Build & run. For a distributable `.app`, use `Product → Archive`.
 5. For Gatekeeper-friendly distribution you need an Apple Developer ID to sign and notarize — see the [Build-Anleitung section in `ISSUES.md`](./ISSUES.md#build-anleitung-saubere-distribution-für-aktuelles-macos).
 
+## CI (GitHub Actions)
+
+This repo builds a **universal Release** `.app` and a **`Later-<version>.dmg`** on GitHub’s macOS runners — same command as locally: `xcode/build-dmg.sh` (ad-hoc signed, not notarized; same as [ISSUES.md](./ISSUES.md) ISSUE-01).
+
+| Workflow | When | Result |
+|----------|------|--------|
+| **Build DMG** | Push or PR to `master` (only if `xcode/**` or workflow files change), or **Run workflow** manually | [Actions → Artifacts](https://github.com/LazaroZero1176/later/actions): download `Later-dmg-<sha>` (contains `Later-*.dmg`). Retention 60 days. |
+| **Release DMG** | Push a **tag** matching `v*` (e.g. `v2.7.6`) | Creates a [GitHub Release](https://github.com/LazaroZero1176/later/releases) and attaches the DMG. **Before tagging**, bump `LATER_VERSION` in `xcode/build-dmg.sh` and align `Info.plist` / `project.pbxproj` with your usual release process. |
+
+Forks: replace `LazaroZero1176/later` in the links with your repo if different.
+
 ## Changelog
 
 **v2.7.5** (2026-04-18, this fork)
 - **Popover version label** next to the title now shows the real **marketing version and build** from `Info.plist` (e.g. `v2.7.5 (22)`), replacing a stale hardcoded storyboard string.
 - **Documentation:** [`ISSUES.md`](./ISSUES.md) — **SEC-01** clarified for this fork (SwiftPM **version** pins in `Package.resolved`); **v2.6.0** security-review text corrected for **v2.6.1+** `reopen.fireDates` storage (`[Double]`). See ISSUE-44.
+- **CI:** [GitHub Actions](#ci-github-actions) builds a DMG on each relevant push/PR and can attach a DMG to a **Release** when you push a `v*` tag. See ISSUE-45.
 - DMG: `Later-2.7.5.dmg`.
 
 **v2.7.4** (2026-04-18, this fork)

@@ -1,0 +1,32 @@
+# On version tags (v*), build DMG and attach to a GitHub Release.
+# Before tagging: bump `LATER_VERSION` in `xcode/build-dmg.sh` + `Info.plist` + `project.pbxproj` (same as any release).
+
+name: Release DMG
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build universal Release + DMG
+        working-directory: xcode
+        run: |
+          chmod +x build-dmg.sh
+          ./build-dmg.sh
+
+      - name: Create GitHub Release and upload DMG
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Later-*.dmg
+          generate_release_notes: true

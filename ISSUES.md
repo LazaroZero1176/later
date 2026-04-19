@@ -337,6 +337,11 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Tracker: SEC-Tabelle **SEC-01** klärt Fork-vs.-Original (Version-Pins in `Package.resolved`); Sicherheits-Review **v2.6.0**-Absatz zu `reopen.fireDates` auf **v2.6.1+ `[Double]`** korrigiert (statt veralteter `Date`/`NSNull`-Formulierung).
 - Dateien: `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`, `ISSUES.md`, Version 2.7.5 / 22 in `Info.plist`, `project.pbxproj`, `build-dmg.sh`, `README.md`.
 
+### ISSUE-45 · LOW · DOC — GitHub Actions: DMG-Build + Release-Artefakt
+- Ziel: Jeder Push auf `master` (bei Änderungen unter `xcode/` oder an Workflows), PRs gegen `master`, und manuelle Ausführung erzeugen eine **DMG** wie lokal (`xcode/build-dmg.sh`); **Tags `v*`** erzeugen zusätzlich ein **GitHub Release** mit angehängter DMG — ohne Apple-Notarisierung (weiterhin ad-hoc / `CODE_SIGN_IDENTITY="-"`).
+- Umsetzung: `.github/workflows/build-dmg.yml` (Artifact `Later-dmg-<sha>`, 60 Tage Retention), `.github/workflows/release-dmg.yml` (`softprops/action-gh-release`, `generate_release_notes`). `build-dmg.sh` akzeptiert optional `LATER_VERSION` aus der Umgebung; Standard bleibt die eine Zeile im Skript (mit `Info.plist` zu bumpen).
+- Dateien: `.github/workflows/build-dmg.yml`, `.github/workflows/release-dmg.yml`, `xcode/build-dmg.sh`, `README.md`.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -512,6 +517,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-42 | FEATURE (v2.7.3: geplanter Speichern-Timer pro Slot, `ScheduledSaveTimerManager`, zweite Planner-Zeile) | `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ScheduledSaveTimerManager.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/SessionTimerEditing.swift`, `xcode/Test/SessionTimePlannerController.swift`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/Test/Info.plist`, `xcode/build-dmg.sh` |
 | ISSUE-43 | FIX (v2.7.4: Time-Planner 2×3-Raster, Fensterbreite 720 pt, kürzere Labels + Tooltips) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-44 | FIX/DOC (v2.7.5: Popover-Version aus Bundle; ISSUES SEC-01 + v2.6.0-Review-Text aktualisiert) | `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`, `ISSUES.md`, `README.md`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
+| ISSUE-45 | DOC (GitHub Actions: DMG-Build + Release bei Tag `v*`, siehe README) | `.github/workflows/build-dmg.yml`, `.github/workflows/release-dmg.yml`, `xcode/build-dmg.sh`, `README.md` |
 | SEC-01 | FIX (Fork: SPM-Version-Pins, kein Branch-Pinning) | `Package.resolved`, siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |

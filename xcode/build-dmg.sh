@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Build Release (universal) and create ../Later-<version>.dmg next to this folder.
 # Version is controlled by LATER_VERSION below; bump together with Info.plist.
+# Optional: `LATER_VERSION=2.8.0 ./build-dmg.sh` — must match the built app's marketing version.
 set -euo pipefail
 
-LATER_VERSION="2.7.5"
+LATER_VERSION="${LATER_VERSION:-2.7.5}"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"

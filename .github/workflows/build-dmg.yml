@@ -1,0 +1,46 @@
+# Universal Release build + DMG — same as local `xcode/build-dmg.sh`.
+# Ad-hoc signed; no notarization (see ISSUES.md ISSUE-01).
+
+name: Build DMG
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "xcode/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [master]
+    paths:
+      - "xcode/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: build-dmg-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build universal Release + DMG
+        working-directory: xcode
+        run: |
+          chmod +x build-dmg.sh
+          ./build-dmg.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Later-dmg-${{ github.sha }}
+          path: Later-*.dmg
+          if-no-files-found: error
+          retention-days: 60
