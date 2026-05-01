@@ -33,9 +33,22 @@ Originally made by [Alyssa X](https://github.com/alyssaxuu) — no longer mainta
 
 Requires **macOS 13.0 (Ventura) or later**.
 
+### Homebrew
+
+```bash
+brew tap LazaroZero1176/tap
+brew install --cask later
+```
+
+The tap lives at [`LazaroZero1176/homebrew-tap`](https://github.com/LazaroZero1176/homebrew-tap). Keep the Cask in that repo in sync with every new `v*` release.
+
+Later is currently ad-hoc signed. The Homebrew Cask prints a caveat with the Gatekeeper fallback command if macOS complains on first launch.
+
+### Manual DMG install
+
 1. Download the DMG from **[GitHub Releases (latest)](https://github.com/LazaroZero1176/later/releases/latest)** — open the current release and download the attached **`Later-*.dmg`**. *(Do not use the old raw repo link `…/blob/master/Later-2.7.5.dmg`; Releases are the official download path with statistics.)*
 2. Open the DMG and drag `Later.app` into your `Applications` folder.
-3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper will block it on first launch. Remove the quarantine attribute in Terminal:
+3. Because the binary is ad-hoc signed (no Apple Developer ID), macOS Gatekeeper may block it on first launch. Remove the quarantine attribute in Terminal:
    ```bash
    xattr -dr com.apple.quarantine /Applications/Later.app
    ```
@@ -83,6 +96,8 @@ This repo builds a **universal Release** `.app` and a **`Later-<version>.dmg`** 
 |----------|------|--------|
 | **Build DMG** | Push or PR to `master` (only if `xcode/**` or workflow files change), or **Run workflow** manually | [Actions → Artifacts](https://github.com/LazaroZero1176/later/actions): download `Later-dmg-<sha>` (contains `Later-*.dmg`). Retention 60 days. |
 | **Release DMG** | Push a **tag** matching `v*` (e.g. `v2.7.6`) | Creates a release under [Releases](https://github.com/LazaroZero1176/later/releases/latest) and attaches the DMG. **Before tagging**, bump `LATER_VERSION` in `xcode/build-dmg.sh` and align `Info.plist` / `project.pbxproj` with your usual release process. |
+
+After the release asset is live, update the Homebrew Cask in [`LazaroZero1176/homebrew-tap`](https://github.com/LazaroZero1176/homebrew-tap): bump `version`, replace `sha256`, then run `brew style Casks/later.rb`, `brew audit --cask --online later`, and `brew install --cask --dry-run later`.
 
 Forks: replace `LazaroZero1176/later` in the links with your repo if different.
 

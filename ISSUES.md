@@ -342,6 +342,50 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
 - Umsetzung: `.github/workflows/build-dmg.yml` (Artifact `Later-dmg-<sha>`, 60 Tage Retention), `.github/workflows/release-dmg.yml` (`softprops/action-gh-release`, `generate_release_notes`). `build-dmg.sh` akzeptiert optional `LATER_VERSION` aus der Umgebung; Standard bleibt die eine Zeile im Skript (mit `Info.plist` zu bumpen).
 - Dateien: `.github/workflows/build-dmg.yml`, `.github/workflows/release-dmg.yml`, `xcode/build-dmg.sh`, `README.md`.
 
+### ISSUE-46 · LOW · DOC/FIX — Homebrew Tap + Cask für Releases
+- Kontext: Im Reddit-Thread wurde ein Homebrew-Tap öffentlich angekündigt („I'll set up a Homebrew tap this weekend"). Das ist aktuell der sichtbarste nächste Distribution-Schritt, weil Nutzer damit nicht mehr manuell DMGs aus Releases laden müssen.
+- Ziel: Ein eigener Tap (`LazaroZero1176/homebrew-tap`) enthält einen Cask für `Later.app`, der das aktuelle Release-DMG lädt, per `sha256` verifiziert und `Later.app` nach `/Applications` installiert.
+- Umsetzung:
+  - Tap-Repo live: [`LazaroZero1176/homebrew-tap`](https://github.com/LazaroZero1176/homebrew-tap); bewusst eigener Tap, nicht Homebrew Core, solange App ad-hoc signiert und nicht notarisiert ist.
+  - Cask `later.rb`: `version`, `sha256`, `url` auf GitHub Releases, `name`, `desc`, `homepage`, `depends_on macos`, `app "Later.app"`, `zap` für Preferences/Application-Support-Pfade und Caveat für Gatekeeper-Fallback.
+  - README-Installationsabschnitt ergänzt: `brew tap LazaroZero1176/tap` + `brew install --cask later`; DMG bleibt Fallback.
+  - Reddit-Follow-up gepostet: Homebrew Tap live, Multi-Monitor/Window-Position-Tests angekündigt, Tahoe-UI-Feedback aufgenommen.
+- Release-Pflege: Nach jedem `v*`-Release muss der Cask im Tap aktualisiert werden (`version`, `sha256`) und anschließend mit `brew style Casks/later.rb`, `brew audit --cask --online later`, `brew install --cask --dry-run later` geprüft werden.
+- Akzeptanzkriterien: `brew install --cask later` installiert die Release-App aus GitHub Releases auf einem frischen macOS; `brew uninstall --cask later` entfernt die App; README enthält den getesteten Installationsbefehl und verlinkt das Tap-Repo.
+
+### ISSUE-47 · MED · OPEN — Backlog P1: Tahoe UI polish (Popover, Chevron, Menüleisten-Icon)
+- Kontext: Reddit-Nutzer `CounterBJJ` meldet auf Tahoe 26.4.1, dass das Menüleistenfenster zu groß wirkt, viele leere Bereiche/abgeschnittene Chevron-Regionen zeigt und das Menüleisten-Icon größer skaliert werden sollte. Zwei Dropbox-Screenshots wurden im Thread verlinkt.
+- Ziel: Popover und Status-Item sollen auf macOS 26 mit Liquid Glass kompakt und lesbar bleiben, ohne Regressionen auf macOS 13-15.
+- Umsetzung:
+  - Nutzer-Screenshots herunterladen/öffnen und konkrete Layoutfehler dokumentieren.
+  - Popover-Höhe, Slot-Grid, Optionsbereich und Timer-/Planner-Zeilen auf überflüssige vertikale Abstände prüfen.
+  - Chevron-/Disclosure-Layout reparieren, sodass Controls nicht über den Rand laufen.
+  - Menüleisten-Icon prüfen: Template-Image, `NSSize`, Status-Item-Length, Insets und Dark/Light-Mode-Verhalten.
+  - Liquid-Glass-On/Off auf Tahoe sowie Legacy-Dark-Popover auf macOS 13-15 smoke-testen.
+- Release-Entscheidung: Wenn nur UI-Fixes betroffen sind, als Patch `v2.7.6` ausliefern.
+
+### ISSUE-48 · MED · OPEN — Backlog P2: Window-Position-, Multi-Monitor- und Spaces-Restore untersuchen
+- Kontext: Reddit-Nutzer `Patrice_77` fragt, ob Later Fensterpositionen über unterschiedliche Spaces und wechselnde Monitor-Konfigurationen wiederherstellen kann (z. B. Safari zuhause auf einem anderen Space mit 2 externen Monitoren, später im Büro mit 1 externem Monitor).
+- Aktueller Stand: Later speichert und restored primär App-/Session-Zugehörigkeit, Slot-Metadaten und Screenshots. Präzise Fensterframes, Display-Zuordnung und Spaces werden derzeit nicht als belastbarer Restore-State persistiert.
+- Research-Fragen:
+  - Welche Fensterframes lassen sich über Accessibility API (`AXUIElement`) zuverlässig lesen und setzen?
+  - Welche zusätzliche TCC-Permission wird benötigt (voraussichtlich Accessibility zusätzlich zu Screen Recording)?
+  - Wie wird ein gespeichertes Display-Setup auf ein aktuelles Setup mit anderer Monitorzahl/Auflösung gemappt?
+  - Welche Grenzen setzt macOS bei Spaces? Keine README-Zusage machen, bevor das Verhalten reproduzierbar ist.
+- Möglicher Scope-Schnitt:
+  - Phase A: Fensterpositionen auf dem aktuellen Space/aktuellen Display-Setup wiederherstellen.
+  - Phase B: Display-Mapping bei geänderter Monitorzahl.
+  - Phase C: Spaces-Verhalten nur, falls technisch robust und Nutzer-verständlich lösbar.
+
+### ISSUE-49 · LOW · OPEN — Backlog P3: Community-Kommunikation und Known Limitations
+- Kontext: Mehrere Reddit-Kommentare bestätigen, dass der Fork als nützliche Wiederbelebung eines verlassenen Projekts wahrgenommen wird. Gleichzeitig entstehen Erwartungen an Distribution, UI-Polish und Window-Position-Restore.
+- Ziel: README, Releases und Reddit-Kommunikation sollen transparent sagen, was der Fork heute kann, was geplant ist und wo macOS technische Grenzen setzt.
+- Umsetzung:
+  - README um „What this fork fixes" und „Known limitations" schärfen.
+  - Homebrew-Status, ad-hoc Signing/Gatekeeper, Window-Position-Restore und Spaces-Grenzen transparent dokumentieren.
+  - Reddit-Follow-up mit kurzer Roadmap: Homebrew zuerst, Tahoe-UI danach, Window-Position-Restore als Research.
+  - Neue Nutzer-Feedbackpunkte weiterhin als `ISSUE-XX` referenzieren, damit Changelog und Tracker synchron bleiben.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -518,6 +562,10 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-43 | FIX (v2.7.4: Time-Planner 2×3-Raster, Fensterbreite 720 pt, kürzere Labels + Tooltips) | `xcode/Test/SessionTimePlannerController.swift`, `xcode/Test/AppDelegate.swift`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-44 | FIX/DOC (v2.7.5: Popover-Version aus Bundle; ISSUES SEC-01 + v2.6.0-Review-Text aktualisiert) | `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard`, `ISSUES.md`, `README.md`, `xcode/Test/Info.plist`, `xcode/Later.xcodeproj/project.pbxproj`, `xcode/build-dmg.sh` |
 | ISSUE-45 | DOC (GitHub Actions: DMG-Build + Release bei Tag `v*`, siehe README) | `.github/workflows/build-dmg.yml`, `.github/workflows/release-dmg.yml`, `xcode/build-dmg.sh`, `README.md` |
+| ISSUE-46 | DOC/FIX (Homebrew Tap live: `LazaroZero1176/homebrew-tap`, Cask für GitHub-Releases, README-Installationsweg) | `README.md`, `ISSUES.md`, Homebrew Tap-Repo |
+| ISSUE-47 | OPEN (P1: Tahoe UI polish für Popover, Chevron und Menüleisten-Icon) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard` |
+| ISSUE-48 | OPEN (P2: Research zu Window-Position-, Multi-Monitor- und Spaces-Restore) | Research/ADR oder `ISSUES.md`, später ggf. `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ViewController.swift` |
+| ISSUE-49 | OPEN (P3: Community-Kommunikation, README-Known-Limitations, Reddit-Follow-up) | `README.md`, `ISSUES.md`, Release Notes |
 | SEC-01 | FIX (Fork: SPM-Version-Pins, kein Branch-Pinning) | `Package.resolved`, siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
@@ -529,6 +577,10 @@ Historische upstream-`Later.dmg` (v1.91) ist nicht mehr im Repo-Root; **Download
 
 ## Bekannte offene Punkte / Nacharbeit
 
+- Release-Pflege: Bei jedem neuen `v*`-Release den Cask in [`LazaroZero1176/homebrew-tap`](https://github.com/LazaroZero1176/homebrew-tap) aktualisieren (`version`, `sha256`) und mit `brew style`, `brew audit --cask --online later`, `brew install --cask --dry-run later` prüfen.
+- P1: Tahoe-UI-Feedback aus Reddit prüfen (`ISSUE-47`): Popover-Größe, Chevron-Layout, Menüleisten-Icon-Skalierung.
+- P2: Window-Position-, Multi-Monitor- und Spaces-Restore nur als Research behandeln (`ISSUE-48`); keine Feature-Zusage vor API-/Permission-Spike.
+- P3: Community-Kommunikation und Known Limitations nachziehen (`ISSUE-49`), sobald Homebrew und UI-Priorisierung klar sind.
 - `Main.storyboard` referenziert die Font-Familie „Inter-Regular" direkt; auf macOS wird der Registrierungs­pfad via `ATSApplicationFontsPath` beim ersten Laden verbraucht — falls eine Font‑Datei fehlen sollte (Bundle-Layout), gleicht das System still auf `SF Pro` zurück. Verifizieren nach dem ersten Clean-Build.
 - `Run Script`-Phase (Legacy‑Helper von `LaunchAtLogin`) wurde entfernt. Falls in Zukunft auf das klassische (pre-macOS 13) `LaunchAtLogin`-Package zurückgegangen wird, muss die Phase wiederhergestellt werden.
 - Die alten Session‑Daten im `UserDefaults` (`apps` = Executable-URL-Liste) werden beim ersten Save durch Bundle-IDs überschrieben; ältere Sessions lassen sich dank `legacyURL`-Fallback trotzdem wiederherstellen.
