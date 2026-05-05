@@ -4,7 +4,7 @@
 # Optional: `LATER_VERSION=2.8.0 ./build-dmg.sh` — must match the built app's marketing version.
 set -euo pipefail
 
-LATER_VERSION="${LATER_VERSION:-2.7.5}"
+LATER_VERSION="${LATER_VERSION:-2.7.6}"
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"

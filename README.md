@@ -111,6 +111,12 @@ Forks: replace `LazaroZero1176/later` in the links with your repo if different.
 
 ## Changelog
 
+**v2.7.6** (2026-05-05, this fork)
+- **Screen Recording permission alert.** Ships [`ISSUES.md`](./ISSUES.md) ISSUE-50 in code: ScreenCaptureKit/legacy capture paths route through a single `handleScreenshotCaptureResult` so denied or stale-grant cases surface as a one-shot `NSAlert` with a deep link to System Settings → Privacy & Security → Screen Recording, instead of the previous silent no-op that left thumbnails black or empty.
+- **TCC redirect-flow guidance (Reddit follow-up).** The alert now explicitly tells the user to quit and relaunch Later after flipping the toggle — macOS does not apply a fresh TCC grant to an already-running process. ISSUE-50 in [`ISSUES.md`](./ISSUES.md) gains a TCC-Gotchas block (no programmatic re-prompt after denial, mandatory deep-link path, fresh `SCShareableContent` query / relaunch) so future debugging does not loop on `CGRequestScreenCaptureAccess`.
+- **Build hygiene:** `.gitignore` generalized to `xcode/DerivedData*/`; legacy `Later-2.7.5.dmg` removed from the repo root and `Later-*.dmg` ignored going forward, since GitHub Releases is the canonical install path (continues the cleanup started by commit `bcfe107`).
+- DMG: **[Releases → latest](https://github.com/LazaroZero1176/later/releases/latest)** — asset `Later-2.7.6.dmg`.
+
 **v2.7.5** (2026-04-18, this fork)
 - **Popover version label** next to the title now shows the real **marketing version and build** from `Info.plist` (e.g. `v2.7.5 (22)`), replacing a stale hardcoded storyboard string.
 - **Documentation:** [`ISSUES.md`](./ISSUES.md) — **SEC-01** clarified for this fork (SwiftPM **version** pins in `Package.resolved`); **v2.6.0** security-review text corrected for **v2.6.1+** `reopen.fireDates` storage (`[Double]`). See ISSUE-44.

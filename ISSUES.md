@@ -400,6 +400,7 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
   - **Deep Link ist Pflicht-Pfad:** `x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture` springt direkt in den Screen-Recording-Pane. Den Toggle muss der Nutzer manuell flippen; eine programmatische Aktivierung ist by design nicht vorgesehen.
   - **Frische Query nach Grant, ggf. Relaunch:** Selbst nach erteiltem Grant „klebt" der Capture-Zustand des laufenden Prozesses oft auf `denied`, bis ein neuer `SCShareableContent`-Aufruf abgesetzt wird; in vielen Fällen hilft nur ein Neustart von Later. Der Thumbnail-Pfad in `captureViaScreenCaptureKit` baut bewusst pro Aufruf einen frischen `SCShareableContent`-Request, damit dieser Refresh ohne Stream-Recycling greift.
 - Dateien: `xcode/Test/ViewController.swift`, `README.md`, `ISSUES.md`.
+- Released as **v2.7.6** (2026-05-05). CFBundleVersion 22 → 24 across the v2.7.5-follow-up commit and the marketing bump.
 
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
