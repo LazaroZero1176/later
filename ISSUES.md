@@ -386,6 +386,21 @@ Die mitgelieferte `Later.dmg` **kann auf macOS 15 (Sequoia) und macOS 26 (Tahoe)
   - Reddit-Follow-up mit kurzer Roadmap: Homebrew zuerst, Tahoe-UI danach, Window-Position-Restore als Research.
   - Neue Nutzer-Feedbackpunkte weiterhin als `ISSUE-XX` referenzieren, damit Changelog und Tracker synchron bleiben.
 
+### ISSUE-50 · HIGH · FIX — ScreenCaptureKit/TCC silent failure after dismissed or stale Screen Recording permission
+- Symptom: Nutzer lehnt den ersten Screen-Recording-Prompt ab oder ein ad-hoc/Xcode-Build verliert seinen TCC-Grant nach dem Re-Signing. `CGPreflightScreenCaptureAccess()` bzw. `SCShareableContent` liefern dann keinen brauchbaren Capture-Zustand; besonders tückisch: `SCShareableContent.excludingDesktopWindows(...)` kann ohne sichtbaren Fehler mit `displays.isEmpty` zurückkommen. Ergebnis aus Nutzersicht: Thumbnail bleibt leer, schwarz oder stale, obwohl die Session ansonsten gespeichert wurde.
+- Ursache: ISSUE-02 hatte die deprecated `CGDisplayCreateImage`-Crashklasse beseitigt, aber der Screenshot-Pfad war danach weiterhin „best effort": `takeScreenshot()` loggte bei verweigerter Permission nur, und `captureViaScreenCaptureKit` machte bei `content.displays.first == nil` ein stilles `return`. TCC-/Permission-Zustände wurden nicht als eigenes UX-Problem behandelt.
+- Fix:
+  - `ScreenshotCaptureResult` trennt `saved`, `permissionDenied`, `noShareableDisplay`, `noDisplay` und generische Fehler.
+  - `takeScreenshot()` routet denied/stale Permission-Zustände zurück auf den Main Thread und zeigt einmal pro App-Run einen Alert mit direktem Link zu `x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture`.
+  - `SCStreamError.userDeclined` und `SCShareableContent.displays.isEmpty` bei vorhandenen `NSScreen.screens` werden als Screen-Recording/TCC-Problem behandelt, nicht als „kein Display".
+  - Bei Screenshot-Fehlern wird keine neue Preview-Datei geschrieben; vorhandene Thumbnails bleiben erhalten, leere Slots bleiben beim Placeholder.
+  - README-Troubleshooting dokumentiert: Permission aktivieren und App neu starten; bei ad-hoc/Xcode-Dev-Builds kann `tccutil reset ScreenCapture alyssaxuu.Later` oder eine stabile Apple-Development-Signatur nötig sein.
+- TCC-Gotchas (Community-Validierung, Reddit-Follow-up):
+  - **Kein programmatisches Re-Prompt nach Denial:** Hat der Nutzer den ersten Screen-Recording-Dialog einmal abgelehnt, blendet macOS ihn nicht mehr ein — `CGRequestScreenCaptureAccess()` liefert dann sofort `false` zurück, ohne UI zu zeigen. Wer in dieser Lage in einer Schleife `CGRequest…` aufruft, debuggt am Symptom vorbei: Der einzige Weg ist die System-Settings-UI.
+  - **Deep Link ist Pflicht-Pfad:** `x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture` springt direkt in den Screen-Recording-Pane. Den Toggle muss der Nutzer manuell flippen; eine programmatische Aktivierung ist by design nicht vorgesehen.
+  - **Frische Query nach Grant, ggf. Relaunch:** Selbst nach erteiltem Grant „klebt" der Capture-Zustand des laufenden Prozesses oft auf `denied`, bis ein neuer `SCShareableContent`-Aufruf abgesetzt wird; in vielen Fällen hilft nur ein Neustart von Later. Der Thumbnail-Pfad in `captureViaScreenCaptureKit` baut bewusst pro Aufruf einen frischen `SCShareableContent`-Request, damit dieser Refresh ohne Stream-Recycling greift.
+- Dateien: `xcode/Test/ViewController.swift`, `README.md`, `ISSUES.md`.
+
 ### ISSUE-35 · LOW · FEATURE — v2.5.0: konfigurierbare globale Shortcuts
 - Kontext: Bis einschließlich v2.4.3 waren `⌘⇧L` (Save active) und `⌘⇧R` (Restore active) in `ViewController` hart verdrahtet (`HotKey` 0.2.0, Initialisierung in `viewDidLoad`). Der einzige UI-Schalter war der Zahnrad-Eintrag **„Disable all shortcuts"**, der lediglich die beiden `HotKey`-Instanzen `nil`te — es gab keine Möglichkeit, die Kombinationen zu ändern oder neue Slots darauf zu legen. Die Frage „was genau deaktiviert der Toggle, wenn ich nie einen Shortcut angelegt habe?" war berechtigt.
 - Umsetzung:
@@ -566,6 +581,7 @@ Stand des aktuellen Commits in diesem Repo:
 | ISSUE-47 | OPEN (P1: Tahoe UI polish für Popover, Chevron und Menüleisten-Icon) | `xcode/Test/AppDelegate.swift`, `xcode/Test/ViewController.swift`, `xcode/Test/en.lproj/Main.storyboard` |
 | ISSUE-48 | OPEN (P2: Research zu Window-Position-, Multi-Monitor- und Spaces-Restore) | Research/ADR oder `ISSUES.md`, später ggf. `xcode/Test/SessionSlotStore.swift`, `xcode/Test/ViewController.swift` |
 | ISSUE-49 | OPEN (P3: Community-Kommunikation, README-Known-Limitations, Reddit-Follow-up) | `README.md`, `ISSUES.md`, Release Notes |
+| ISSUE-50 | FIX (ScreenCaptureKit/TCC silent failure erkannt; Alert zu Screen Recording Settings; keine ungültigen Thumbnail-Writes) | `xcode/Test/ViewController.swift`, `README.md`, `ISSUES.md` |
 | SEC-01 | FIX (Fork: SPM-Version-Pins, kein Branch-Pinning) | `Package.resolved`, siehe ISSUE-03/04 |
 | SEC-02 | FIX (`allow-jit` entfernt) | `xcode/Test/Test.entitlements` |
 | SEC-03 | DOC (kein App-Sandbox, bewusst; Hinweis im Tracker) | — |
@@ -581,6 +597,7 @@ Historische upstream-`Later.dmg` (v1.91) ist nicht mehr im Repo-Root; **Download
 - P1: Tahoe-UI-Feedback aus Reddit prüfen (`ISSUE-47`): Popover-Größe, Chevron-Layout, Menüleisten-Icon-Skalierung.
 - P2: Window-Position-, Multi-Monitor- und Spaces-Restore nur als Research behandeln (`ISSUE-48`); keine Feature-Zusage vor API-/Permission-Spike.
 - P3: Community-Kommunikation und Known Limitations nachziehen (`ISSUE-49`), sobald Homebrew und UI-Priorisierung klar sind.
+- TCC-Regressionen bei Screenshot-Preview (`ISSUE-50`) nach jedem Signing-/Distribution-Wechsel testen: denied prompt, grant after restart, ad-hoc Debug-Build mit stale Privacy toggle.
 - `Main.storyboard` referenziert die Font-Familie „Inter-Regular" direkt; auf macOS wird der Registrierungs­pfad via `ATSApplicationFontsPath` beim ersten Laden verbraucht — falls eine Font‑Datei fehlen sollte (Bundle-Layout), gleicht das System still auf `SF Pro` zurück. Verifizieren nach dem ersten Clean-Build.
 - `Run Script`-Phase (Legacy‑Helper von `LaunchAtLogin`) wurde entfernt. Falls in Zukunft auf das klassische (pre-macOS 13) `LaunchAtLogin`-Package zurückgegangen wird, muss die Phase wiederhergestellt werden.
 - Die alten Session‑Daten im `UserDefaults` (`apps` = Executable-URL-Liste) werden beim ersten Save durch Bundle-IDs überschrieben; ältere Sessions lassen sich dank `legacyURL`-Fallback trotzdem wiederherstellen.

@@ -257,6 +257,15 @@ class ViewController: NSViewController {
 
     /// Placeholder shown in the session preview box when the active slot is empty.
     private var noSessionLabel: NSTextField?
+    private var hasShownScreenRecordingPermissionAlert = false
+
+    private enum ScreenshotCaptureResult {
+        case saved(slotIndex: Int)
+        case permissionDenied
+        case noShareableDisplay
+        case noDisplay
+        case failed(String)
+    }
     
     let defaults = UserDefaults.standard
     
@@ -705,7 +714,7 @@ class ViewController: NSViewController {
 
     /// Take a small preview screenshot. Uses ScreenCaptureKit on macOS 14+,
     /// falls back to legacy CGWindowListCreateImage otherwise (ISSUE-02).
-    /// Silently no-ops on failure; the preview is non-essential.
+    /// Skips the thumbnail on failure; session metadata is still saved.
     ///
     /// Always resolves Screen Recording permission via `CGPreflight` / `CGRequest`
     /// **before** calling ScreenCaptureKit. Hitting `SCShareableContent` without
@@ -714,52 +723,106 @@ class ViewController: NSViewController {
         if #available(macOS 10.15, *) {
             if !CGPreflightScreenCaptureAccess() {
                 guard CGRequestScreenCaptureAccess() else {
-                    NSLog("Later: screenshot skipped — Screen Recording not granted (System Settings → Privacy & Security → Screen Recording)")
+                    handleScreenshotCaptureResult(.permissionDenied)
                     return
                 }
             }
         }
         let slotIdx = SessionSlotStore.activeIndex()
         if #available(macOS 14.0, *) {
-            Task.detached(priority: .userInitiated) {
-                await Self.captureViaScreenCaptureKit(slotIndex: slotIdx)
+            Task(priority: .userInitiated) { [weak self] in
+                let result = await Self.captureViaScreenCaptureKit(slotIndex: slotIdx)
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleScreenshotCaptureResult(result)
+                }
             }
         } else {
-            captureLegacy(slotIndex: slotIdx)
+            handleScreenshotCaptureResult(captureLegacy(slotIndex: slotIdx))
         }
     }
 
     @available(macOS 14.0, *)
-    private static func captureViaScreenCaptureKit(slotIndex: Int) async {
-        guard CGPreflightScreenCaptureAccess() else { return }
+    private static func captureViaScreenCaptureKit(slotIndex: Int) async -> ScreenshotCaptureResult {
+        guard CGPreflightScreenCaptureAccess() else { return .permissionDenied }
         do {
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            guard let display = content.displays.first else { return }
+            guard let display = content.displays.first else {
+                return NSScreen.screens.isEmpty ? .noDisplay : .noShareableDisplay
+            }
             let filter = SCContentFilter(display: display, excludingWindows: [])
             let config = SCStreamConfiguration()
             config.width = display.width
             config.height = display.height
             config.showsCursor = false
             let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-            guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else { return }
+            guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else {
+                return .failed("Missing screenshot destination")
+            }
             let rep = NSBitmapImageRep(cgImage: image)
-            guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else { return }
+            guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
+                return .failed("Could not encode screenshot preview")
+            }
             try data.write(to: url, options: .atomic)
+            return .saved(slotIndex: slotIndex)
+        } catch SCStreamError.userDeclined {
+            return .permissionDenied
         } catch {
-            // Likely the user has not granted Screen Recording permission yet.
-            NSLog("Later: screenshot failed: \(error.localizedDescription)")
+            return .failed(error.localizedDescription)
         }
     }
 
-    private func captureLegacy(slotIndex: Int) {
-        guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else { return }
-        guard let image = CGWindowListCreateImage(.zero, .optionOnScreenOnly, kCGNullWindowID, [.nominalResolution]) else { return }
+    private func captureLegacy(slotIndex: Int) -> ScreenshotCaptureResult {
+        guard let url = SessionSlotStore.screenshotURL(for: slotIndex) else {
+            return .failed("Missing screenshot destination")
+        }
+        guard let image = CGWindowListCreateImage(.zero, .optionOnScreenOnly, kCGNullWindowID, [.nominalResolution]) else {
+            return NSScreen.screens.isEmpty ? .noDisplay : .failed("Could not capture screen preview")
+        }
         let rep = NSBitmapImageRep(cgImage: image)
-        guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else { return }
+        guard let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else {
+            return .failed("Could not encode screenshot preview")
+        }
         do {
             try data.write(to: url, options: .atomic)
+            return .saved(slotIndex: slotIndex)
         } catch {
-            NSLog("Later: cannot write screenshot: \(error)")
+            return .failed("Cannot write screenshot: \(error.localizedDescription)")
+        }
+    }
+
+    private func handleScreenshotCaptureResult(_ result: ScreenshotCaptureResult) {
+        switch result {
+        case .saved(let slotIndex):
+            if slotIndex == SessionSlotStore.activeIndex() {
+                setScreenshot()
+            }
+        case .permissionDenied:
+            NSLog("Later: screenshot skipped — Screen Recording permission is not granted")
+            presentScreenRecordingPermissionAlert()
+        case .noShareableDisplay:
+            NSLog("Later: screenshot skipped — ScreenCaptureKit returned no displays; likely stale or denied Screen Recording permission")
+            presentScreenRecordingPermissionAlert()
+        case .noDisplay:
+            NSLog("Later: screenshot skipped — no display is available")
+        case .failed(let message):
+            NSLog("Later: screenshot failed — \(message)")
+        }
+    }
+
+    private func presentScreenRecordingPermissionAlert() {
+        guard !hasShownScreenRecordingPermissionAlert else { return }
+        hasShownScreenRecordingPermissionAlert = true
+
+        let alert = NSAlert()
+        alert.messageText = "Screen Recording permission needed"
+        alert.informativeText = "Later uses Screen Recording only to create the local preview thumbnail for a saved session. Your apps are still saved, but the preview can stay empty or stale until you grant permission in System Settings. After flipping the Screen Recording toggle, quit and relaunch Later — macOS does not apply the new permission to an already-running process, so the next save would otherwise still produce an empty thumbnail. If this is an Xcode/ad-hoc development build and the toggle already looks enabled, reset Screen Recording for alyssaxuu.Later or use a stable Apple Development signing identity."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Not Now")
+
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
         }
     }
 

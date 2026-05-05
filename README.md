@@ -72,7 +72,15 @@ That's the Gatekeeper quarantine warning — see step 3 above (`xattr -dr com.ap
 
 **"Later" cannot save my session / screenshot fails**
 
-Grant Screen Recording permission: `System Settings → Privacy & Security → Screen Recording → enable Later`. Restart the app afterwards.
+Grant Screen Recording permission: `System Settings → Privacy & Security → Screen Recording → enable Later`. Restart Later afterwards; macOS often does not apply the new permission to a running process.
+
+If the session saves but the preview thumbnail is empty, black, or stale, it is usually still a Screen Recording permission problem rather than a broken session. Later will offer to open the Screen Recording settings when ScreenCaptureKit reports no capturable displays.
+
+Development note: ad-hoc signed Xcode builds can lose their Screen Recording grant every time Xcode re-signs the app. The toggle in System Settings may still look enabled while ScreenCaptureKit refuses capture. Use a stable Apple Development signing identity for debug builds, or reset the local TCC entry before testing:
+
+```bash
+tccutil reset ScreenCapture alyssaxuu.Later
+```
 
 **My system apps (Finder, System Settings) don't hide**
 
